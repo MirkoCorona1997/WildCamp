@@ -138,6 +138,10 @@
   .empty {
     padding: 18px; border: 1px dashed var(--line); border-radius: 16px; color: #cbbfa8; font-size: 13px; line-height: 1.45;
   }
+  .tabs, .tools, .panel, .float-filters, .layers { display: none !important; }
+  .float-filters.open, .layers.open { display: flex !important; }
+  .pills { position: absolute; z-index: 6; top: 8px; left: 8px; display: flex; gap: 6px; }
+  .pills button { border: 0; background: var(--sand); color: var(--ink); border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 650; }
   .tools {
     position: absolute; z-index: 3; left: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px;
   }
@@ -214,7 +218,7 @@
     .search { width: auto; flex: 1 1 72px; min-width: 0; }
     .search input { font-size: 12px; }
     .tabs button { padding: 5px 7px; font-size: 12px; }
-    #map { inset: 6px 6px 58px 6px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+    #map { inset: 6px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
     .float-filters { left: 10px; right: 10px; top: 8px; max-height: 64px; overflow: auto; }
     .panel { left: 8px; right: 8px; top: auto; bottom: 58px; width: auto; height: min(46vh, 420px); }
     .panel.collapsed { height: 0; padding: 0; border: 0; overflow: hidden; }
@@ -231,19 +235,20 @@
 <div id="app">
   <header class="top">
     <div class="brand">
-      <span class="ver" id="versionTag">v14</span>
+      <span class="ver" id="versionTag">v16</span>
     </div>
     <form class="search" id="searchForm">
       <input id="q" placeholder="Cerca luogo" autocomplete="off" />
       <button type="submit">Vai</button>
     </form>
-    <nav class="tabs" aria-label="Sezioni">
-      <button type="button" id="tabMap" class="on">Mappa</button>
-      <button type="button" id="tabSpots">Segnaposto</button>
-    </nav>
+    
   </header>
   <div class="stage">
     <div id="map"></div>
+    <div class="pills">
+      <button type="button" id="pillFilters">Filtri</button>
+      <button type="button" id="pillLayers">Livelli</button>
+    </div>
     <div class="float-filters" id="filters"></div>
     <div class="layers" id="layers"></div>
     <div class="tools">
@@ -281,7 +286,7 @@
   </div>
 </div>
 <script>
-document.getElementById("versionTag").textContent = "v14";
+document.getElementById("versionTag").textContent = "v16";
 </script>
 <script src="maplibre-gl.js"></script>
 <script>
@@ -1304,6 +1309,8 @@ async function downloadPack(kind) {
   toast("OSM salvata nel telefono");
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+$("pillLayers").onclick = () => { $("layers").classList.toggle("open"); $("filters").classList.remove("open"); };
+$("pillFilters").onclick = () => { $("filters").classList.toggle("open"); $("layers").classList.remove("open"); };
 $("btnLayers").onclick = () => $("layers").classList.toggle("open");
 $("btnLocate").onclick = () => {
   if (!navigator.geolocation) return toast("Geolocalizzazione non disponibile");
