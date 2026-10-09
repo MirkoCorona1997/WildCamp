@@ -20,6 +20,13 @@
     form button { padding: 0 12px; }
     #here { border-radius: 999px; padding: 8px 10px; white-space: nowrap; }
     #ver { position: absolute; z-index: 2; top: calc(52px + env(safe-area-inset-top)); right: 10px; color: #5d564c; font: 10px system-ui; }
+    .card { position: absolute; z-index: 3; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); background: #fff; color: #14241c; border-radius: 16px; padding: 10px; display: none; font: 14px system-ui, sans-serif; }
+    .card.show { display: block; }
+    .card b { display: block; margin-bottom: 8px; }
+    .icons, .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+    .icons button, .acts button, .acts a { border-radius: 999px; padding: 8px 10px; background: #efe6d8; color: #14241c; text-decoration: none; }
+    .acts a { background: #e3a14a; }
+    .pin { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
     .me { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 18px solid #1d6fd4; filter: drop-shadow(0 0 2px #fff); }
   </style>
 </head>
@@ -33,7 +40,8 @@
     </form>
     <button type="button" id="here">Posizione</button>
   </div>
-  <div id="ver">v19</div>
+  <div id="ver">v20</div>
+  <section class="card" id="card"></section>
 </div>
 <script src="maplibre-gl.js"></script>
 <script>
@@ -95,6 +103,46 @@ window.addEventListener("deviceorientation", (e) => {
   if (e.webkitCompassHeading != null) heading = e.webkitCompassHeading;
   else if (e.alpha != null) heading = (360 - e.alpha) % 360;
   if (marker) place(marker.getLngLat().lng, marker.getLngLat().lat);
+});
+
+const ICONS = [
+  ["tenda", "⛺", "#2f8a60"],
+  ["acqua", "💧", "#2d8ec8"],
+  ["doccia", "🚿", "#3ec1c9"],
+  ["cestino", "🗑️", "#7d9a52"],
+  ["albero", "🌳", "#3f7d46"],
+  ["domanda", "❓", "#c9a35c"]
+];
+const spots = JSON.parse(localStorage.getItem("wildcamp-spots") || "[]");
+const pins = [];
+function drawSpots() {
+  pins.forEach(p => p.remove());
+  pins.length = 0;
+  spots.forEach(s => {
+    const el = document.createElement("div");
+    el.className = "pin";
+    el.textContent = s.emoji;
+    el.style.background = s.color;
+    pins.push(new maplibregl.Marker({ element: el }).setLngLat([s.lng, s.lat]).addTo(map));
+  });
+}
+map.on("load", drawSpots);
+map.on("click", (e) => {
+  const lat = e.lngLat.lat;
+  const lng = e.lngLat.lng;
+  const card = document.getElementById("card");
+  card.className = "card show";
+  card.innerHTML = "<b>" + lat.toFixed(5) + ", " + lng.toFixed(5) + "</b><div class='icons'>" +
+    ICONS.map(i => "<button type='button' data-i='" + i[0] + "'>" + i[1] + "</button>").join("") +
+    "</div><div class='acts'><a href='https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng + "'>Naviga</a><button type='button' id='close'>Chiudi</button></div>";
+  card.querySelectorAll("[data-i]").forEach(b => b.onclick = () => {
+    const icon = ICONS.find(i => i[0] === b.dataset.i);
+    spots.push({ lng, lat, emoji: icon[1], color: icon[2] });
+    localStorage.setItem("wildcamp-spots", JSON.stringify(spots));
+    drawSpots();
+    card.className = "card";
+  });
+  document.getElementById("close").onclick = () => { card.className = "card"; };
 });
 </script>
 </body>
