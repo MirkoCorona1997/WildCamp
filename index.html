@@ -44,6 +44,7 @@
     .row { background: #1b3328; border-radius: 14px; padding: 10px; margin: 8px 0; }
     .row b { display: block; }
     .row textarea { width: 100%; min-height: 52px; border: 0; border-radius: 10px; padding: 8px; margin-top: 6px; }
+    .photo { width: 100%; max-height: 140px; object-fit: cover; border-radius: 10px; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -58,7 +59,7 @@
     <button type="button" id="filters">Filtri</button>
     <button type="button" id="openList">Lista</button>
   </div>
-  <div id="ver">v26</div>
+  <div id="ver">v27</div>
   <section class="sheet" id="sheet"></section>
   <section class="card" id="card"></section>
   <section id="list"></section>
@@ -148,10 +149,35 @@ function closeCard() {
   document.getElementById("card").className = "card";
   hideAim();
 }
+function pickPhoto(s, done) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.onchange = () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 640 / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      s.photo = canvas.toDataURL("image/jpeg", 0.7);
+      saveSpots();
+      if (done) done();
+    };
+    img.src = URL.createObjectURL(file);
+  };
+  input.click();
+}
 function openSpotCard(s) {
   const card = document.getElementById("card");
   card.className = "card show";
-  card.innerHTML = "<b>" + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b><div class='acts'><button type='button' id='del'>Togli segnaposto</button><a href='https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lng + "'>Naviga</a><button type='button' id='close'>Chiudi</button></div>";
+  card.innerHTML = "<b>" + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b>" +
+    (s.photo ? "<img class='photo' src='" + s.photo + "'>" : "") +
+    "<div class='acts'><button type='button' id='photo'>Foto</button><button type='button' id='del'>Togli segnaposto</button><a href='https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lng + "'>Naviga</a><button type='button' id='close'>Chiudi</button></div>";
+  document.getElementById("photo").onclick = () => pickPhoto(s, () => openSpotCard(s));
   document.getElementById("del").onclick = () => {
     const n = spots.findIndex(x => x.uid === s.uid);
     if (n >= 0) spots.splice(n, 1);
@@ -207,7 +233,7 @@ function renderList() {
   const rows = spots.filter(s => !hidden.has(s.id));
   box.innerHTML = "<header><button type='button' id='closeList'>Mappa</button><button type='button' id='loadBackup'>Carica backup</button></header><div class='icons'>" +
     ICONS.map(i => "<button type='button' data-f='" + i[0] + "' class='" + (hidden.has(i[0]) ? "off" : "") + "'>" + i[1] + "</button>").join("") +
-    "</div>" + (rows.length ? rows.map(s => "<div class='row' data-uid='" + s.uid + "'><b>" + s.emoji + " " + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b><textarea data-note='" + s.uid + "' placeholder='Nota'>" + (s.note || "") + "</textarea></div>").join("") : "<p>Nessun segnaposto</p>");
+    "</div>" + (rows.length ? rows.map(s => "<div class='row' data-uid='" + s.uid + "'><b>" + s.emoji + " " + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b>" + (s.photo ? "<img class='photo' src='" + s.photo + "'>" : "") + "<textarea data-note='" + s.uid + "' placeholder='Nota'>" + (s.note || "") + "</textarea><button type='button' data-photo='" + s.uid + "'>Foto</button></div>").join("") : "<p>Nessun segnaposto</p>");
   document.getElementById("closeList").onclick = () => box.classList.remove("show");
   box.querySelectorAll("[data-f]").forEach(b => b.onclick = () => {
     if (hidden.has(b.dataset.f)) hidden.delete(b.dataset.f); else hidden.add(b.dataset.f);
@@ -215,8 +241,13 @@ function renderList() {
     drawSpots();
     renderList();
   });
+  box.querySelectorAll("[data-photo]").forEach(b => b.onclick = (ev) => {
+    ev.stopPropagation();
+    const s = spots.find(x => String(x.uid) === b.dataset.photo);
+    if (s) pickPhoto(s, renderList);
+  });
   box.querySelectorAll(".row").forEach(row => row.onclick = (ev) => {
-    if (ev.target.tagName === "TEXTAREA") return;
+    if (ev.target.tagName === "TEXTAREA" || ev.target.tagName === "BUTTON" || ev.target.tagName === "IMG") return;
     const s = spots.find(x => String(x.uid) === row.dataset.uid);
     if (!s) return;
     box.classList.remove("show");
