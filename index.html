@@ -48,7 +48,7 @@
     <button type="button" id="here">Posizione</button>
     <button type="button" id="filters">Filtri</button>
   </div>
-  <div id="ver">v22</div>
+  <div id="ver">v23</div>
   <section class="sheet" id="sheet"></section>
   <section class="card" id="card"></section>
 </div>
@@ -124,39 +124,40 @@ const ICONS = [
 ];
 const hidden = new Set(JSON.parse(localStorage.getItem("wildcamp-hidden") || "[]"));
 let aim = null;
+function hideAim() { if (aim) { aim.remove(); aim = null; } }
 function showAim(lng, lat) {
-  if (aim) aim.remove();
+  hideAim();
   const el = document.createElement("div");
   el.className = "aim";
   aim = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
 }
-let skipMap = false;
+function closeCard() {
+  document.getElementById("card").className = "card";
+  hideAim();
+}
+function openSpotCard(s) {
+  const card = document.getElementById("card");
+  card.className = "card show";
+  card.innerHTML = "<b>" + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b><div class='acts'><button type='button' id='del'>Togli segnaposto</button><a href='https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lng + "'>Naviga</a><button type='button' id='close'>Chiudi</button></div>";
+  document.getElementById("del").onclick = () => {
+    const n = spots.findIndex(x => x.uid === s.uid);
+    if (n >= 0) spots.splice(n, 1);
+    localStorage.setItem("wildcamp-spots", JSON.stringify(spots));
+    drawSpots();
+    closeCard();
+  };
+  document.getElementById("close").onclick = closeCard;
+}
 function drawSpots() {
   pins.forEach(p => p.remove());
   pins.length = 0;
   spots.forEach((s) => {
     if (hidden.has(s.id)) return;
-    const el = document.createElement("button");
-    el.type = "button";
+    const el = document.createElement("div");
     el.className = "pin";
     el.textContent = s.emoji;
     el.style.background = s.color;
-    el.onclick = (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      skipMap = true;
-      const card = document.getElementById("card");
-      card.className = "card show";
-      card.innerHTML = "<b>" + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b><div class='acts'><button type='button' id='del'>Togli segnaposto</button><a href='https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lng + "'>Naviga</a><button type='button' id='close'>Chiudi</button></div>";
-      document.getElementById("del").onclick = () => {
-        const n = spots.findIndex(x => x.uid === s.uid);
-        if (n >= 0) spots.splice(n, 1);
-        localStorage.setItem("wildcamp-spots", JSON.stringify(spots));
-        drawSpots();
-        card.className = "card";
-      };
-      document.getElementById("close").onclick = () => { card.className = "card"; };
-    };
+    el.dataset.uid = String(s.uid);
     pins.push(new maplibregl.Marker({ element: el }).setLngLat([s.lng, s.lat]).addTo(map));
   });
 }
@@ -164,7 +165,6 @@ document.getElementById("filters").onclick = (ev) => {
   ev.stopPropagation();
   const sheet = document.getElementById("sheet");
   const open = sheet.classList.toggle("show");
-  sheet.classList.toggle("sheet", true);
   if (!open) return;
   sheet.innerHTML = ICONS.map(i => "<button type='button' data-f='" + i[0] + "' class='" + (hidden.has(i[0]) ? "off" : "") + "'>" + i[1] + "</button>").join("");
   sheet.querySelectorAll("button").forEach(b => b.onclick = (ev2) => {
@@ -177,7 +177,12 @@ document.getElementById("filters").onclick = (ev) => {
 };
 map.on("load", drawSpots);
 map.on("click", (e) => {
-  if (skipMap) { skipMap = false; return; }
+  const pin = e.originalEvent && e.originalEvent.target && e.originalEvent.target.closest && e.originalEvent.target.closest(".pin");
+  if (pin) {
+    const s = spots.find(x => String(x.uid) === pin.dataset.uid);
+    if (s) openSpotCard(s);
+    return;
+  }
   const lat = e.lngLat.lat;
   const lng = e.lngLat.lng;
   showAim(lng, lat);
@@ -191,9 +196,9 @@ map.on("click", (e) => {
     spots.push({ uid: Date.now() + Math.random(), id: icon[0], lng, lat, emoji: icon[1], color: icon[2] });
     localStorage.setItem("wildcamp-spots", JSON.stringify(spots));
     drawSpots();
-    card.className = "card";
+    closeCard();
   });
-  document.getElementById("close").onclick = () => { card.className = "card"; };
+  document.getElementById("close").onclick = closeCard;
 });
 </script>
 </body>
