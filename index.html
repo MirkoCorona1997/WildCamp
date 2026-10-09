@@ -242,7 +242,7 @@
 <div id="app">
   <header class="top">
     <div class="brand">
-      <span class="ver" id="versionTag">v17</span>
+      <span class="ver" id="versionTag">v18</span>
     </div>
     <form class="search" id="searchForm">
       <input id="q" placeholder="Cerca luogo" autocomplete="off" />
@@ -296,7 +296,7 @@
   </div>
 </div>
 <script>
-document.getElementById("versionTag").textContent = "v17";
+document.getElementById("versionTag").textContent = "v18";
 </script>
 <script src="maplibre-gl.js"></script>
 <script>
@@ -690,7 +690,8 @@ if (map) map.on("load", () => {
   map.on("click", "tracks-drive", onTrackClick);
   map.on("click", "tracks-foot", onTrackClick);
   map.on("click", (e) => {
-    const hit = map.queryRenderedFeatures(e.point, { layers: ["pins", "clusters", "tracks-drive", "tracks-foot"] });
+    let hit = [];
+    try { hit = map.queryRenderedFeatures(e.point, { layers: ["pins", "clusters", "tracks-drive", "tracks-foot"].filter(id => map.getLayer(id)) }); } catch (err) {}
     if (hit.length) return;
     if (state.measure) {
       state.measurePts.push(e.lngLat);
@@ -892,8 +893,8 @@ function renderAll() {
   renderLayers();
   renderPanel();
   syncMap();
-  $("tabMap").classList.toggle("on", state.section === "map");
-  $("tabSpots").classList.toggle("on", state.section === "spots");
+  if ($("tabMap")) $("tabMap").classList.toggle("on", state.section === "map");
+  if ($("tabSpots")) $("tabSpots").classList.toggle("on", state.section === "spots");
 }
 
 function openSpot(s) {
@@ -1123,8 +1124,8 @@ function escapeHtml(s) {
 }
 function escapeXml(s) { return escapeHtml(s); }
 
-$("tabMap").onclick = () => { state.section = "map"; $("panel").classList.remove("collapsed"); renderAll(); };
-$("tabSpots").onclick = () => { state.section = "spots"; $("panel").classList.remove("collapsed"); renderAll(); };
+if ($("tabMap")) $("tabMap").onclick = () => { state.section = "map"; $("panel").classList.remove("collapsed"); renderAll(); };
+if ($("tabSpots")) $("tabSpots").onclick = () => { state.section = "spots"; $("panel").classList.remove("collapsed"); renderAll(); };
 $("panelToggle").onclick = () => $("panel").classList.toggle("collapsed");
 $("btnAdd").onclick = () => {
   state.addMode = !state.addMode;
