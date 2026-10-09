@@ -48,8 +48,9 @@
   .brand { display: flex; align-items: center; gap: 8px; }
   .brand h1 { font-family: Fraunces, serif; font-size: 18px; margin: 0; letter-spacing: -.03em; font-weight: 680; }
   .ver {
-    display: inline-block; background: #e3a14a; color: #14241c; font-weight: 700;
-    font-size: 12px; border-radius: 999px; padding: 2px 7px; letter-spacing: 0;
+    position: absolute; z-index: 6; top: 8px; right: 8px;
+    background: rgba(20, 36, 28, .72); color: #f4ecdf; font-weight: 600;
+    font-size: 9px; line-height: 1; border-radius: 6px; padding: 2px 4px; letter-spacing: 0;
   }
   .search {
     flex: 0 1 220px; display: flex; gap: 4px; background: rgba(255,255,255,.04);
@@ -146,8 +147,10 @@
   }
   .tools button.on, .layers button.on, .addbar button.on { background: var(--sand); color: var(--ink); }
   .layers {
-    position: absolute; z-index: 3; left: 16px; top: 68px; display: flex; flex-direction: column; gap: 6px; width: 168px;
+    display: none; position: absolute; z-index: 5; left: 10px; top: 52px;
+    flex-direction: column; gap: 6px; width: 168px;
   }
+  .layers.open { display: flex; }
   .status {
     position: absolute; z-index: 3; left: 196px; bottom: 18px; right: 392px;
     background: rgba(16,28,22,.82); border: 1px solid var(--line); border-radius: 14px;
@@ -197,20 +200,30 @@
   .sv iframe { width: 100%; height: calc(100% - 48px); border: 0; background: #111; }
   .slider { width: 100%; accent-color: var(--amber); }
   .hide-mobile { display: inline; }
+  html, body, #app { width: 100%; max-width: 100%; overflow: hidden; }
+  header.top { max-width: 100%; overflow: hidden; background: var(--deep); padding-top: calc(6px + env(safe-area-inset-top)); }
+  .tabs { flex: 0 0 auto; }
+  .pickbar { position: absolute; z-index: 6; left: 10px; right: 10px; bottom: 62px; background: var(--deep); color: var(--sand); border: 1px solid var(--line); border-radius: 16px; padding: 10px; display: none; }
+  .pickbar.show { display: block; }
+  .pickbar b { font-size: 13px; }
+  .pickbar .row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .pickbar input, .pickbar select { background: transparent; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; font-size: 13px; }
   @media (max-width: 860px) {
-    header.top { flex-wrap: nowrap; padding: 6px 8px; }
-    .brand p, .hide-mobile { display: none; }
-    .ver { display: inline-block; }
-    .search { order: 0; width: 108px; flex: 0 0 108px; }
+    header.top { flex-wrap: nowrap; gap: 4px; padding: 4px 8px; padding-top: calc(4px + env(safe-area-inset-top)); }
+    .ver { display: block; top: 6px; right: 6px; font-size: 9px; }
+    .search { width: auto; flex: 1 1 72px; min-width: 0; }
     .search input { font-size: 12px; }
-    .float-filters { right: 8px; top: 8px; bottom: auto; }
-    .panel { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; height: min(62vh, 540px); }
-    .panel.collapsed { height: 42px; overflow: hidden; }
-    .layers { top: 8px; }
+    .tabs button { padding: 5px 7px; font-size: 12px; }
+    #map { inset: 6px 6px 58px 6px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+    .float-filters { left: 10px; right: 10px; top: 8px; max-height: 64px; overflow: auto; }
+    .panel { left: 8px; right: 8px; top: auto; bottom: 58px; width: auto; height: min(46vh, 420px); }
+    .panel.collapsed { height: 0; padding: 0; border: 0; overflow: hidden; }
+    .layers { top: 8px; right: 8px; max-width: 42%; }
     .status { display: none; }
-    .drawer, .sv { left: 8px; right: 8px; width: auto; bottom: 52px; }
-    .tools { flex-direction: row; right: 8px; left: 8px; bottom: 8px; gap: 4px; }
-    .tools button { flex: 1; text-align: center; padding: 7px 4px; font-size: 11px; }
+    .drawer, .sv, .pickbar { left: 8px; right: 8px; width: auto; bottom: 62px; }
+    .tools { flex-direction: row; right: 6px; left: 6px; bottom: calc(6px + env(safe-area-inset-bottom)); gap: 4px; }
+    .tools button { flex: 1; text-align: center; padding: 7px 2px; font-size: 10px; }
+    .maplibregl-ctrl-bottom-right { bottom: 8px; right: 8px; }
   }
 </style>
 </head>
@@ -218,8 +231,7 @@
 <div id="app">
   <header class="top">
     <div class="brand">
-      <h1>WildCamp</h1>
-      <span class="ver" id="versionTag">v11</span>
+      <span class="ver" id="versionTag">v14</span>
     </div>
     <form class="search" id="searchForm">
       <input id="q" placeholder="Cerca luogo" autocomplete="off" />
@@ -238,11 +250,13 @@
       <button type="button" id="btnLocate">La mia posizione</button>
       <button type="button" id="btnAdd">Aggiungi punto</button>
       <button type="button" id="btnMeasure">Misura distanza</button>
-      <button type="button" id="btnTracks">Fondi 4x4</button>
+      <button type="button" id="btnLayers">Livelli</button>
       <button type="button" id="btnSardinia">Scarica Sardegna</button>
       <button type="button" id="btnZone">Scarica zona</button>
       <button type="button" id="btnOsm">Punti OSM</button>
+      <button type="button" id="btnSettings">Impostazioni</button>
     </div>
+    <section class="pickbar" id="pickbar"></section>
     <div class="legend" id="legend" hidden></div>
     <div class="status" id="status"></div>
     <aside class="panel collapsed" id="panel">
@@ -267,7 +281,7 @@
   </div>
 </div>
 <script>
-document.getElementById("versionTag").textContent = "v11";
+document.getElementById("versionTag").textContent = "v14";
 </script>
 <script src="maplibre-gl.js"></script>
 <script>
@@ -674,7 +688,8 @@ if (map) map.on("load", () => {
       } else toast("Secondo punto per la distanza");
       return;
     }
-    if (state.addMode) openComposer(e.lngLat.lat, e.lngLat.lng);
+    if (state.addMode) { openComposer(e.lngLat.lat, e.lngLat.lng); return; }
+    openPick(e.lngLat.lat, e.lngLat.lng);
   });
   map.on("mouseenter", "pins", () => map.getCanvas().style.cursor = "pointer");
   map.on("mouseleave", "pins", () => map.getCanvas().style.cursor = "");
@@ -761,12 +776,17 @@ function renderLayers() {
   $("layers").innerHTML = items.map(([id, label]) =>
     `<button type="button" data-layer="${id}" class="${state.layer === id ? "on" : ""}">${label}</button>`
   ).join("") +
+    `<button type="button" data-overlay="tracks" class="${state.tracksOn ? "on" : ""}">Fondi 4x4</button>` +
     `<button type="button" data-overlay="hike" class="${state.hikeOn ? "on" : ""}">Sentieri a piedi</button>` +
     `<button type="button" data-overlay="mtb" class="${state.mtbOn ? "on" : ""}">Tracce MTB</button>`;
   $("layers").querySelectorAll("[data-layer]").forEach(b => b.onclick = () => setLayer(b.dataset.layer));
   $("layers").querySelectorAll("[data-overlay]").forEach(b => b.onclick = () => {
     const key = b.dataset.overlay;
-    if (key === "hike") state.hikeOn = !state.hikeOn;
+    if (key === "tracks") {
+      state.tracksOn = !state.tracksOn;
+      $("legend").hidden = !state.tracksOn;
+      if (state.tracksOn) { if (map.getZoom() < 12) map.flyTo({ zoom: 12 }); loadTracks(); renderLegend(); }
+    }
     if (key === "mtb") state.mtbOn = !state.mtbOn;
     if (map.getLayer("hike")) map.setLayoutProperty("hike", "visibility", state.hikeOn ? "visible" : "none");
     if (map.getLayer("mtb")) map.setLayoutProperty("mtb", "visibility", state.mtbOn ? "visible" : "none");
@@ -1106,6 +1126,122 @@ $("btnMeasure").onclick = () => {
   $("btnAdd").classList.remove("on");
   if (state.measure) toast("Tocca due punti sulla mappa");
 };
+
+const THEMES = {
+  bosco: ["#0e1a14", "#f4ecdf", "#e3a14a", "#14241c"],
+  notte: ["#12121a", "#eceaf6", "#8ab4ff", "#101018"],
+  sabbia: ["#2a2118", "#f6efe4", "#e07a3d", "#24180f"],
+  mare: ["#102028", "#e7f3f6", "#3ec1c9", "#0e1c24"]
+};
+function applyTheme(id) {
+  const c = THEMES[id] || THEMES.bosco;
+  const r = document.documentElement.style;
+  r.setProperty("--deep", c[0]);
+  r.setProperty("--sand", c[1]);
+  r.setProperty("--amber", c[2]);
+  r.setProperty("--ink", c[3]);
+  document.body.style.background = c[0];
+  localStorage.setItem("wildcamp-theme", id);
+}
+applyTheme(localStorage.getItem("wildcamp-theme") || "bosco");
+let pickMarker = null;
+function openPick(lat, lng) {
+  if (!map) return;
+  if (pickMarker) pickMarker.remove();
+  pickMarker = new maplibregl.Marker({ color: "#e3a14a" }).setLngLat([lng, lat]).addTo(map);
+  const box = $("pickbar");
+  box.classList.add("show");
+  box.innerHTML = `<b>${lat.toFixed(5)}, ${lng.toFixed(5)}</b>
+    <div class="row">
+      <input id="pickName" placeholder="Nome del punto" />
+      <select id="pickCat">${CATS.map(c => `<option value="${c.id}">${c.label}</option>`).join("")}</select>
+      <button type="button" id="pickSave">Segnaposto</button>
+      <a id="pickGo" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}">Naviga</a>
+      <button type="button" id="pickClose">Chiudi</button>
+    </div>`;
+  $("pickSave").onclick = () => {
+    state.spots.push({ id: uid(), cat: $("pickCat").value, name: $("pickName").value.trim() || "Punto", note: "", lat, lng, source: "mio", fav: false });
+    saveStore(); renderAll(); box.classList.remove("show"); toast("Segnaposto salvato");
+  };
+  $("pickClose").onclick = () => { box.classList.remove("show"); if (pickMarker) pickMarker.remove(); };
+}
+function openSettings() {
+  const d = $("drawer");
+  d.classList.add("show");
+  d.innerHTML = `<div style="display:flex;justify-content:space-between"><h3>Impostazioni</h3><button class="quiet" id="closeDrawer">Chiudi</button></div>
+    <p class="meta">Tema</p>
+    <div class="actions">${Object.keys(THEMES).map(id => `<button type="button" data-theme="${id}">${id}</button>`).join("")}</div>
+    <p class="meta">Importa segnaposto da Google Maps: file KML, GPX, CSV o JSON esportato da I tuoi luoghi o da My Maps.</p>
+    <button type="button" id="importMaps">Importa file</button>`;
+  $("closeDrawer").onclick = () => d.classList.remove("show");
+  d.querySelectorAll("[data-theme]").forEach(b => b.onclick = () => applyTheme(b.dataset.theme));
+  $("importMaps").onclick = importMaps;
+}
+function importMaps() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".kml,.gpx,.csv,.json,.geojson,text/xml,text/csv,application/json";
+  input.onchange = () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || "");
+      const added = parseMarkers(text, file.name);
+      if (!added.length) return toast("Nessun punto trovato nel file");
+      state.spots.push(...added);
+      saveStore(); renderAll();
+      toast(added.length + " punti importati");
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+function parseMarkers(text, name) {
+  const out = [];
+  const push = (lat, lng, title) => {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return;
+    out.push({ id: uid(), cat: "verifica", name: title || "Punto importato", note: name, lat, lng, source: "mio", fav: false });
+  };
+  if (name.endsWith(".json") || text.trim().startsWith("{") || text.trim().startsWith("[")) {
+    try {
+      const data = JSON.parse(text);
+      const rows = Array.isArray(data) ? data : (data.features || []);
+      for (const r of rows) {
+        if (r.geometry && r.geometry.coordinates) push(+r.geometry.coordinates[1], +r.geometry.coordinates[0], (r.properties && r.properties.name) || r.name);
+        else push(+r.lat, +(r.lng != null ? r.lng : r.lon), r.name || r.title);
+      }
+      return out;
+    } catch (err) {}
+  }
+  const coord = text.matchAll(/<coordinates>\s*([-\d.]+)\s*,\s*([-\d.]+)/g);
+  const names = [...text.matchAll(/<name>([^<]*)<\/name>/g)].map(m => m[1]);
+  let i = 0;
+  for (const m of coord) { push(+m[2], +m[1], names[i++] || "Punto"); }
+  if (out.length) return out;
+  const wpt = text.matchAll(/<wpt[^>]*lat="([-\d.]+)"[^>]*lon="([-\d.]+)"[^>]*>[\s\S]*?<name>([^<]*)<\/name>/g);
+  for (const m of wpt) push(+m[1], +m[2], m[3]);
+  if (out.length) return out;
+  const lines = text.split(/\r?\n/);
+  if (lines.length > 1 && /,/.test(lines[0])) {
+    const head = lines[0].toLowerCase().split(",");
+    const latI = head.findIndex(h => /lat/.test(h));
+    const lngI = head.findIndex(h => /lon|lng/.test(h));
+    const nameI = head.findIndex(h => /name|title|nome/.test(h));
+    for (const line of lines.slice(1)) {
+      const cols = line.split(",");
+      if (latI >= 0 && lngI >= 0) push(+cols[latI], +cols[lngI], nameI >= 0 ? cols[nameI] : "Punto");
+      else {
+        const url = line.match(/@([-\d.]+),([-\d.]+)/) || line.match(/query=([-\d.]+),([-\d.]+)/);
+        if (url) push(+url[1], +url[2], cols[0]);
+      }
+    }
+  }
+  return out;
+}
+$("btnSettings").onclick = openSettings;
+
 $("btnOsm").onclick = loadOsm;
 $("btnSardinia").onclick = () => downloadPack("sardegna");
 $("btnZone").onclick = () => downloadPack("zona");
@@ -1168,17 +1304,7 @@ async function downloadPack(kind) {
   toast("OSM salvata nel telefono");
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
-$("btnTracks").onclick = () => {
-  state.tracksOn = !state.tracksOn;
-  $("btnTracks").classList.toggle("on", state.tracksOn);
-  $("legend").hidden = !state.tracksOn;
-  if (state.tracksOn) {
-    if (map.getZoom() < 12) map.flyTo({ zoom: 12, center: map.getCenter() });
-    loadTracks();
-    renderLegend();
-    toast("Coloro sterrate e sentieri solo pedonali");
-  } else toast("Livello fondi spento");
-};
+$("btnLayers").onclick = () => $("layers").classList.toggle("open");
 $("btnLocate").onclick = () => {
   if (!navigator.geolocation) return toast("Geolocalizzazione non disponibile");
   navigator.geolocation.getCurrentPosition(pos => {
