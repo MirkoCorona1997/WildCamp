@@ -44,7 +44,7 @@
     .row { background: #1b3328; border-radius: 14px; padding: 10px; margin: 8px 0; }
     .row b { display: block; }
     .row textarea { width: 100%; min-height: 52px; border: 0; border-radius: 10px; padding: 8px; margin-top: 6px; }
-    .photo { width: 100%; max-height: 140px; object-fit: cover; border-radius: 10px; margin-top: 6px; }
+    .photo { width: 100%; height: auto; border-radius: 10px; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -57,9 +57,10 @@
     </form>
     <button type="button" id="here">Posizione</button>
     <button type="button" id="filters">Filtri</button>
+    <button type="button" id="layers">Livelli</button>
     <button type="button" id="openList">Lista</button>
   </div>
-  <div id="ver">v27</div>
+  <div id="ver">v28</div>
   <section class="sheet" id="sheet"></section>
   <section class="card" id="card"></section>
   <section id="list"></section>
@@ -71,14 +72,15 @@ const map = new maplibregl.Map({
   style: {
     version: 8,
     sources: {
-      osm: {
-        type: "raster",
-        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-        tileSize: 256,
-        attribution: "© OpenStreetMap"
-      }
+      osm: { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap" },
+      topo: { type: "raster", tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenTopoMap" },
+      sat: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "© Esri" }
     },
-    layers: [{ id: "osm", type: "raster", source: "osm" }]
+    layers: [
+      { id: "osm", type: "raster", source: "osm" },
+      { id: "topo", type: "raster", source: "topo", layout: { visibility: "none" } },
+      { id: "sat", type: "raster", source: "sat", layout: { visibility: "none" } }
+    ]
   },
   center: [9.05, 40.05],
   zoom: 7.4,
@@ -281,6 +283,17 @@ function renderList() {
     input.click();
   };
 }
+
+document.getElementById("layers").onclick = (ev) => {
+  ev.stopPropagation();
+  const sheet = document.getElementById("sheet");
+  sheet.classList.add("show");
+  sheet.innerHTML = "<button type='button' data-layer='osm'>OSM</button><button type='button' data-layer='topo'>Topo</button><button type='button' data-layer='sat'>Satellite</button>";
+  sheet.querySelectorAll("[data-layer]").forEach(b => b.onclick = () => {
+    ["osm", "topo", "sat"].forEach(id => map.setLayoutProperty(id, "visibility", id === b.dataset.layer ? "visible" : "none"));
+    sheet.classList.remove("show");
+  });
+};
 document.getElementById("openList").onclick = () => { renderList(); document.getElementById("list").classList.add("show"); };
 maybeWeeklyBackup();
 
