@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#102019" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="WildCamp" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon-180.png" />
+<title>WildCamp — fuoristrada e tenda</title>
+<link rel="icon" href="icon-180.png" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,520;9..144,680&family=Outfit:wght@340;460;580;700&display=swap" rel="stylesheet" />
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #14241c;
+    --moss: #1b3328;
+    --deep: #0e1a14;
+    --leaf: #2f7a56;
+    --leaf-2: #3f9a6c;
+    --sand: #f4ecdf;
+    --sand-2: #e7dcc8;
+    --amber: #e3a14a;
+    --amber-2: #c9842e;
+    --cream: #fbf7f1;
+    --line: rgba(244, 236, 223, .14);
+    --water: #2d8ec8;
+    --bin: #7d9a52;
+    --picnic: #c56b45;
+    --verify: #c9a35c;
+    --tent: #2f8a60;
+    --shadow: 0 18px 50px rgba(8, 16, 12, .35);
+    --radius: 22px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--deep); color: var(--sand); font-family: Outfit, system-ui, sans-serif; }
+  button, input, textarea, select { font-family: inherit; color: inherit; }
+  button { cursor: pointer; }
+  #app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+  header.top {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 16px; background: linear-gradient(180deg, #13241c, #102019);
+    border-bottom: 1px solid var(--line); z-index: 5;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 190px; }
+  .mark {
+    width: 38px; height: 38px; border-radius: 12px;
+    background: radial-gradient(circle at 30% 30%, #3f6b52, #1a3328);
+    display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  }
+  .brand h1 { font-family: Fraunces, serif; font-size: 22px; margin: 0; letter-spacing: -.03em; font-weight: 680; }
+  .brand p { margin: 0; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #cbbfa8; }
+  .legend {
+    position: absolute; z-index: 3; left: 16px; bottom: 168px; width: 230px;
+    background: rgba(16, 28, 22, .9); border: 1px solid var(--line); border-radius: 16px;
+    padding: 10px 12px; font-size: 12px; box-shadow: var(--shadow); backdrop-filter: blur(10px);
+  }
+  .legend b { display: block; margin-bottom: 6px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+  .legend button { display: flex; width: 100%; gap: 8px; align-items: center; background: transparent; border: 0; color: var(--sand); padding: 4px 0; text-align: left; }
+  .legend button.on i { box-shadow: 0 0 0 2px #f4ecdf; }
+  .legend i { width: 22px; height: 4px; border-radius: 4px; display: inline-block; }
+  .layers { width: 196px; }
+  .search {
+    flex: 1; display: flex; gap: 8px; background: rgba(255,255,255,.04);
+    border: 1px solid var(--line); border-radius: 999px; padding: 6px 6px 6px 14px; align-items: center;
+  }
+  .search input {
+    flex: 1; background: transparent; border: 0; outline: none; font-size: 14px; min-width: 0;
+  }
+  .search button, .iconbtn {
+    border: 0; background: var(--sand); color: var(--ink); border-radius: 999px;
+    padding: 8px 12px; font-weight: 580; font-size: 13px;
+  }
+  .iconbtn.ghost, .ghost {
+    background: transparent; color: var(--sand); border: 1px solid var(--line);
+  }
+  .tabs { display: flex; gap: 6px; }
+  .tabs button {
+    border: 1px solid var(--line); background: transparent; color: var(--sand);
+    border-radius: 999px; padding: 8px 12px; font-size: 13px;
+  }
+  .tabs button.on { background: var(--sand); color: var(--ink); border-color: var(--sand); }
+  .stage { position: relative; min-height: 0; }
+  #map { position: absolute; inset: 0; }
+  .maplibregl-ctrl-attrib { font-size: 10px; }
+  .float-filters {
+    position: absolute; z-index: 3; left: 16px; right: 392px; top: 14px;
+    display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none;
+  }
+  .float-filters > * { pointer-events: auto; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid rgba(255,255,255,.16); background: rgba(16, 28, 22, .82);
+    backdrop-filter: blur(10px); color: var(--sand); border-radius: 999px;
+    padding: 7px 10px 7px 8px; font-size: 13px; box-shadow: var(--shadow);
+  }
+  .chip.on { outline: 2px solid var(--amber); background: #24382c; }
+  .chip .dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; }
+  .chip small { opacity: .7; font-size: 11px; }
+  .panel {
+    position: absolute; z-index: 4; top: 14px; right: 14px; bottom: 14px; width: 364px;
+    background: rgba(16, 27, 22, .92); border: 1px solid var(--line); border-radius: 26px;
+    box-shadow: var(--shadow); backdrop-filter: blur(16px);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .panel.head {
+    padding: 16px 16px 10px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+  }
+  .panel h2 { font-family: Fraunces, serif; margin: 0; font-size: 26px; letter-spacing: -.03em; }
+  .panel .sub { color: #cbbfa8; font-size: 13px; margin-top: 4px; }
+  .panel .body { overflow: auto; padding: 6px 12px 16px; }
+  .group { margin: 8px 4px 16px; }
+  .group h3 {
+    display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 13px;
+    letter-spacing: .08em; text-transform: uppercase; color: #d9cbb6;
+  }
+  .spot {
+    width: 100%; text-align: left; border: 1px solid transparent; background: rgba(255,255,255,.03);
+    border-radius: 16px; padding: 10px; margin-bottom: 6px; display: grid; grid-template-columns: 36px 1fr auto; gap: 8px; align-items: center;
+  }
+  .spot:hover, .spot.active { border-color: rgba(227,161,74,.55); background: rgba(227,161,74,.08); }
+  .spot b { display: block; font-weight: 580; font-size: 14px; }
+  .spot span { display: block; color: #cbbfa8; font-size: 12px; margin-top: 2px; }
+  .spot em { font-style: normal; font-size: 11px; color: var(--amber); }
+  .empty {
+    padding: 18px; border: 1px dashed var(--line); border-radius: 16px; color: #cbbfa8; font-size: 13px; line-height: 1.45;
+  }
+  .tools {
+    position: absolute; z-index: 3; left: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .tools button, .layers button, .addbar button {
+    border: 1px solid rgba(255,255,255,.14); background: rgba(16,28,22,.88); color: var(--sand);
+    border-radius: 14px; padding: 10px 12px; text-align: left; box-shadow: var(--shadow); backdrop-filter: blur(10px);
+  }
+  .tools button.on, .layers button.on, .addbar button.on { background: var(--sand); color: var(--ink); }
+  .layers {
+    position: absolute; z-index: 3; left: 16px; top: 68px; display: flex; flex-direction: column; gap: 6px; width: 168px;
+  }
+  .status {
+    position: absolute; z-index: 3; left: 196px; bottom: 18px; right: 392px;
+    background: rgba(16,28,22,.82); border: 1px solid var(--line); border-radius: 14px;
+    padding: 8px 12px; font-size: 12px; color: #e6dccb; backdrop-filter: blur(8px);
+  }
+  .drawer {
+    position: absolute; z-index: 6; left: 16px; bottom: 16px; width: min(440px, calc(100% - 408px));
+    background: var(--cream); color: var(--ink); border-radius: 24px; box-shadow: var(--shadow);
+    padding: 16px; display: none;
+  }
+  .drawer.show { display: block; }
+  .drawer h3 { font-family: Fraunces, serif; margin: 0 0 4px; font-size: 28px; letter-spacing: -.03em; }
+  .meta { color: #5d564c; font-size: 13px; margin-bottom: 10px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .actions a, .actions button, .primary, .quiet {
+    border-radius: 999px; padding: 8px 11px; font-size: 13px; text-decoration: none; border: 0; font-weight: 580;
+  }
+  .actions a, .primary { background: var(--ink); color: var(--sand); }
+  .actions button, .quiet { background: #efe6d8; color: var(--ink); }
+  .weather {
+    display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px; margin-top: 8px;
+  }
+  .weather div { background: #efe6d8; border-radius: 14px; padding: 8px 10px; font-size: 12px; }
+  .weather strong { display: block; font-size: 16px; }
+  .formgrid { display: grid; gap: 8px; }
+  .formgrid input, .formgrid textarea, .formgrid select, .listsearch {
+    width: 100%; border: 1px solid #e0d4c2; background: white; border-radius: 12px; padding: 10px 12px; color: var(--ink); font-size: 14px;
+  }
+  .listsearch { margin: 0 4px 10px; background: rgba(255,255,255,.06); border: 1px solid var(--line); color: var(--sand); }
+  .toast {
+    position: absolute; z-index: 8; top: 16px; left: 50%; transform: translateX(-50%);
+    background: var(--sand); color: var(--ink); padding: 10px 14px; border-radius: 999px;
+    font-size: 13px; display: none; box-shadow: var(--shadow);
+  }
+  .toast.show { display: block; }
+  .legal {
+    font-size: 12px; line-height: 1.45; color: #5d564c; background: #efe6d8; border-radius: 14px; padding: 10px; margin-top: 8px;
+  }
+  .check { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .check input { margin-top: 3px; }
+  .sv {
+    position: absolute; z-index: 5; top: 14px; left: 16px; bottom: 14px; width: min(520px, calc(100% - 408px));
+    background: #0d1612; border-radius: 24px; overflow: hidden; border: 1px solid var(--line); display: none; box-shadow: var(--shadow);
+  }
+  .sv.show { display: block; }
+  .sv header { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; }
+  .sv iframe { width: 100%; height: calc(100% - 48px); border: 0; background: #111; }
+  .slider { width: 100%; accent-color: var(--amber); }
+  .hide-mobile { display: inline; }
+  @media (max-width: 860px) {
+    header.top { flex-wrap: wrap; }
+    .brand p, .hide-mobile { display: none; }
+    .search { order: 3; width: 100%; flex: none; }
+    .float-filters { right: 12px; top: auto; bottom: 78px; }
+    .panel { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; height: min(62vh, 540px); }
+    .panel.collapsed { height: 58px; }
+    .layers { top: 12px; }
+    .status { display: none; }
+    .drawer, .sv { left: 8px; right: 8px; width: auto; bottom: 74px; }
+    .tools { flex-direction: row; right: 12px; left: 12px; bottom: 12px; }
+    .tools button { flex: 1; text-align: center; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <img src="icon-180.png" alt="" width="38" height="38" style="width:38px;height:38px;object-fit:cover;border-radius:10px" />
+      </div>
+      <div>
+        <h1>WildCamp</h1>
+        <p>fuoristrada e tenda</p>
+      </div>
+    </div>
+    <form class="search" id="searchForm">
+      <input id="q" placeholder="Cerca un luogo, un lago, una valle…" autocomplete="off" />
+      <button type="submit">Cerca</button>
+    </form>
+    <nav class="tabs" aria-label="Sezioni">
+      <button type="button" id="tabMap" class="on">Mappa</button>
+      <button type="button" id="tabSpots">Segnaposto</button>
+    </nav>
+  </header>
+  <div class="stage">
+    <div id="map"></div>
+    <div class="float-filters" id="filters"></div>
+    <div class="layers" id="layers"></div>
+    <div class="tools">
+      <button type="button" id="btnLocate">La mia posizione</button>
+      <button type="button" id="btnAdd">Aggiungi punto</button>
+      <button type="button" id="btnMeasure">Misura distanza</button>
+      <button type="button" id="btnTracks">Fondi 4x4</button>
+      <button type="button" id="btnOsm">Carica zona OSM</button>
+    </div>
+    <div class="legend" id="legend" hidden></div>
+    <div class="status" id="status">Per il fuoristrada usa Fondi 4x4: colora sterrate, tratti difficili e sentieri solo pedonali.</div>
+    <aside class="panel" id="panel">
+      <div class="head">
+        <div>
+          <h2 id="panelTitle">Segnaposto</h2>
+          <div class="sub" id="panelSub">Filtra per icona. I punti restano sulla mappa.</div>
+        </div>
+        <button class="ghost iconbtn" id="panelToggle" type="button">Chiudi</button>
+      </div>
+      <div class="body" id="panelBody"></div>
+    </aside>
+    <section class="drawer" id="drawer"></section>
+    <section class="sv" id="sv">
+      <header>
+        <strong>Vista strada</strong>
+        <button class="ghost iconbtn" id="svClose" type="button">Chiudi</button>
+      </header>
+      <iframe id="svFrame" title="Street View" referrerpolicy="no-referrer"></iframe>
+    </section>
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+const CATS = [
+  { id: "tenda", label: "Tenda", hint: "posto per la tenda", color: "#2f8a60", glyph: "tent" },
+  { id: "verifica", label: "Da verificare", hint: "controlla dal vivo", color: "#c9a35c", glyph: "ask" },
+  { id: "acqua", label: "Acqua", hint: "rifornimento", color: "#2d8ec8", glyph: "tap" },
+  { id: "rifiuti", label: "Rifiuti", hint: "cestino o isola", color: "#7d9a52", glyph: "bin" },
+  { id: "picnic", label: "Picnic", hint: "tavoli e panchine", color: "#c56b45", glyph: "table" }
+];
+const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
+const REGIONS = [
+  ["Dolomiti", 11.85, 46.45, 10],
+  ["Gran Paradiso", 7.25, 45.52, 11],
+  ["Gran Sasso", 13.55, 42.45, 11],
+  ["Toscana", 11.3, 43.55, 8],
+  ["Sardegna", 9.35, 40.15, 8],
+  ["Sicilia", 14.2, 37.6, 8],
+  ["Cinque Terre", 9.72, 44.13, 12],
+  ["Val di Mello", 9.77, 46.26, 13]
+];
+const CHECKS = [
+  "Tenda, picchetti e telo",
+  "Sacco a pelo adatto alla quota",
+  "Acqua o filtro, più scorta",
+  "Sacchi per riportare i rifiuti",
+  "Cibo e fornello, se consentito",
+  "Fronte e lampada",
+  "Kit pronto soccorso",
+  "Power bank e mappa offline",
+  "Controllo divieti di parco e comune",
+  "Fondo sterrato e altezza del fuoristrada",
+  "Piano B se il posto non è adatto"
+];
+
+const state = {
+  spots: [],
+  filter: "all",
+  favOnly: false,
+  query: "",
+  section: "spots",
+  addMode: false,
+  addCat: "verifica",
+  measure: false,
+  measurePts: [],
+  layer: "osm",
+  pitch: 58,
+  exager: 1.35,
+  user: null,
+  selected: null,
+  osmOn: true,
+  checks: {},
+  tracksOn: false,
+  roadFilter: "drive",
+  hikeOn: false,
+  mtbOn: false
+};
+
+const $ = (id) => document.getElementById(id);
+function toast(msg) {
+  const el = $("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove("show"), 2800);
+}
+function uid() { return Math.random().toString(36).slice(2, 10); }
+function loadStore() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("wildcamp-v1") || "{}");
+    state.spots = raw.spots || seedSpots();
+    state.checks = raw.checks || {};
+  } catch { state.spots = seedSpots(); }
+}
+function saveStore() {
+  const mine = state.spots.filter(s => s.source === "mio");
+  localStorage.setItem("wildcamp-v1", JSON.stringify({ spots: mine, checks: state.checks }));
+}
+function seedSpots() {
+  const rows = [
+    ["verifica", 12.302, 46.618, "Tre Cime, conca alta", "Posizione indicativa. Spesso soggetta a divieti di bivacco: verifica i cartelli del parco."],
+    ["verifica", 11.648, 46.542, "Alpe di Siusi, margine prati", "Zona molto frequentata. Non è un'autorizzazione al campeggio."],
+    ["picnic", 12.085, 46.694, "Lago di Braies, area sosta", "Picnic noto, non un posto tenda. Utile per tavoli e punto di partenza."],
+    ["verifica", 13.558, 42.443, "Campo Imperatore", "Altopiano ventoso. Controlla regolamento del Parco del Gran Sasso."],
+    ["verifica", 9.77, 46.26, "Val di Mello, greto", "Boulder e bivacchi informali: regole locali severe in alta stagione."],
+    ["acqua", 11.575, 46.409, "Lago di Carezza, fontana area", "Punto acqua da confermare sul posto, portata stagionale."],
+    ["verifica", 9.32, 40.25, "Supramonte, leccio", "Selvaggio e secco: porta più acqua del previsto."],
+    ["rifiuti", 11.121, 46.067, "Trento nord, isola ecologica indicativa", "Esempio urbano per chiudere il giro. Cerca l'isola reale in mappa OSM."]
+  ];
+  return rows.map((r, i) => ({
+    id: "seed-" + i, cat: r[0], lng: r[1], lat: r[2], name: r[3], note: r[4],
+    source: "mio", verified: r[0] === "tenda", fav: false, addedAt: Date.now()
+  }));
+}
+
+function iconImage(cat) {
+  const c = document.createElement("canvas");
+  c.width = 76; c.height = 96;
+  const g = c.getContext("2d");
+  g.translate(38, 36);
+  g.beginPath();
+  g.arc(0, 0, 26, 0, Math.PI * 2);
+  g.fillStyle = CAT[cat].color;
+  g.fill();
+  g.lineWidth = 5;
+  g.strokeStyle = "#f7f3ea";
+  g.stroke();
+  g.beginPath();
+  g.moveTo(-8, 24); g.lineTo(0, 42); g.lineTo(8, 24);
+  g.fillStyle = CAT[cat].color;
+  g.fill();
+  g.strokeStyle = "#f7f3ea";
+  g.lineWidth = 3;
+  g.stroke();
+  drawGlyph(g, CAT[cat].glyph);
+  return c;
+}
+function drawGlyph(g, kind) {
+  g.strokeStyle = "#f7f3ea";
+  g.fillStyle = "#f7f3ea";
+  g.lineWidth = 2.4;
+  g.lineJoin = "round";
+  g.lineCap = "round";
+  if (kind === "tent") {
+    g.beginPath();
+    g.moveTo(-12, 10); g.lineTo(0, -10); g.lineTo(12, 10); g.closePath();
+    g.stroke();
+    g.beginPath(); g.moveTo(0, -6); g.lineTo(0, 10); g.stroke();
+  } else if (kind === "ask") {
+    g.font = "700 26px Outfit, sans-serif";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillText("?", 0, 1);
+  } else if (kind === "tap") {
+    g.beginPath();
+    g.moveTo(-8, -8); g.lineTo(6, -8); g.lineTo(6, -2); g.lineTo(1, -2); g.lineTo(1, 8);
+    g.stroke();
+    g.beginPath(); g.arc(4, 11, 2.2, 0, Math.PI * 2); g.fill();
+  } else if (kind === "bin") {
+    g.strokeRect(-8, -4, 16, 14);
+    g.beginPath(); g.moveTo(-6, -4); g.lineTo(-4, -9); g.lineTo(4, -9); g.lineTo(6, -4); g.stroke();
+    g.beginPath(); g.moveTo(0, -1); g.lineTo(0, 7); g.stroke();
+  } else {
+    g.strokeRect(-11, 0, 22, 4);
+    g.beginPath();
+    g.moveTo(-9, 4); g.lineTo(-9, 11); g.moveTo(9, 4); g.lineTo(9, 11);
+    g.moveTo(-11, -2); g.lineTo(-11, 1); g.moveTo(11, -2); g.lineTo(11, 1);
+    g.stroke();
+  }
+}
+
+function gmaps(s) { return `https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lng}`; }
+function gdir(s) {
+  const from = state.user ? `${state.user.lat},${state.user.lng}` : "";
+  return `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}${from ? `&origin=${from}` : ""}`;
+}
+function gearth(s) { return `https://earth.google.com/web/@${s.lat},${s.lng},1800a,3500d,35y,0h,62t,0r`; }
+function gstreet(s) { return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${s.lat},${s.lng}`; }
+function svEmbed(s) { return `https://maps.google.com/maps?q=&layer=c&cbll=${s.lat},${s.lng}&cbp=11,0,0,0,0&output=svembed`; }
+
+const map = new maplibregl.Map({
+  container: "map",
+  style: "https://tiles.openfreemap.org/styles/liberty",
+  center: [11.9, 45.7],
+  zoom: 7.2,
+  pitch: 0,
+  maxPitch: 72,
+  attributionControl: true
+});
+map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
+map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
+
+map.on("load", () => {
+  for (const c of CATS) map.addImage("pin-" + c.id, iconImage(c.id), { pixelRatio: 2 });
+  map.addSource("dem", {
+    type: "raster-dem",
+    tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+    encoding: "terrarium",
+    tileSize: 256,
+    maxzoom: 15
+  });
+  map.addSource("satellite", {
+    type: "raster",
+    tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+    tileSize: 256,
+    attribution: "Immagini Esri, Maxar, Earthstar"
+  });
+  map.addSource("topo", {
+    type: "raster",
+    tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"],
+    tileSize: 256,
+    maxzoom: 17,
+    attribution: "OpenTopoMap (CC-BY-SA)"
+  });
+  map.addSource("cyclo", {
+    type: "raster",
+    tiles: ["https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png", "https://b.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png"],
+    tileSize: 256,
+    maxzoom: 18,
+    attribution: "CyclOSM © OpenStreetMap"
+  });
+  map.addSource("esritopo", {
+    type: "raster",
+    tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"],
+    tileSize: 256,
+    attribution: "Esri World Topo"
+  });
+  map.addSource("hike", {
+    type: "raster",
+    tiles: ["https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png"],
+    tileSize: 256,
+    attribution: "Waymarked Trails"
+  });
+  map.addSource("mtb", {
+    type: "raster",
+    tiles: ["https://tile.waymarkedtrails.org/mtb/{z}/{x}/{y}.png"],
+    tileSize: 256,
+    attribution: "Waymarked Trails MTB"
+  });
+  map.addSource("tracks", { type: "geojson", data: emptyFC() });
+  const firstSymbol = map.getStyle().layers.find(l => l.type === "symbol");
+  const before = firstSymbol && firstSymbol.id;
+  map.addLayer({ id: "sat", type: "raster", source: "satellite", layout: { visibility: "none" } }, before);
+  map.addLayer({ id: "topo", type: "raster", source: "topo", layout: { visibility: "none" } }, before);
+  map.addLayer({ id: "cyclo", type: "raster", source: "cyclo", layout: { visibility: "none" } }, before);
+  map.addLayer({ id: "esritopo", type: "raster", source: "esritopo", layout: { visibility: "none" } }, before);
+  map.addLayer({
+    id: "hill",
+    type: "hillshade",
+    source: "dem",
+    layout: { visibility: "none" },
+    paint: { "hillshade-exaggeration": 0.28, "hillshade-shadow-color": "#1c2a22" }
+  }, before);
+  map.addLayer({ id: "hike", type: "raster", source: "hike", layout: { visibility: "none" }, paint: { "raster-opacity": 0.9 } });
+  map.addLayer({ id: "mtb", type: "raster", source: "mtb", layout: { visibility: "none" }, paint: { "raster-opacity": 0.85 } });
+  map.addLayer({
+    id: "tracks-drive",
+    type: "line",
+    source: "tracks",
+    filter: ["match", ["get", "cls"], ["sterrata", "difficile", "solo4x4", "incerta", "asfalto"], true, false],
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": ["match", ["get", "cls"], "asfalto", "#8aa0b5", "sterrata", "#e0b13a", "difficile", "#e07a3d", "solo4x4", "#e24b4b", "incerta", "#d9c48a", "#cccccc"],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.6, 14, 3.6, 17, 6.5],
+      "line-opacity": 0.92
+    }
+  });
+  map.addLayer({
+    id: "tracks-foot",
+    type: "line",
+    source: "tracks",
+    filter: ["==", ["get", "cls"], "pedonale"],
+    layout: { "line-cap": "butt", "line-join": "round" },
+    paint: {
+      "line-color": "#8d7cff",
+      "line-width": ["interpolate", ["linear"], ["zoom"], 11, 1.2, 15, 2.6],
+      "line-dasharray": [1.2, 1.5],
+      "line-opacity": 0.9
+    }
+  });
+  map.addSource("spots", { type: "geojson", data: emptyFC(), cluster: true, clusterRadius: 48, clusterMaxZoom: 13 });
+  map.addLayer({
+    id: "clusters",
+    type: "circle",
+    source: "spots",
+    filter: ["has", "point_count"],
+    paint: {
+      "circle-color": "#1b3328",
+      "circle-radius": ["step", ["get", "point_count"], 16, 20, 20, 60, 26],
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#f4ecdf"
+    }
+  });
+  map.addLayer({
+    id: "cluster-count",
+    type: "symbol",
+    source: "spots",
+    filter: ["has", "point_count"],
+    layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 12, "text-font": ["Noto Sans Regular"] },
+    paint: { "text-color": "#f4ecdf" }
+  });
+  map.addLayer({
+    id: "pins",
+    type: "symbol",
+    source: "spots",
+    filter: ["!", ["has", "point_count"]],
+    layout: {
+      "icon-image": ["concat", "pin-", ["get", "cat"]],
+      "icon-size": 0.78,
+      "icon-anchor": "bottom",
+      "icon-allow-overlap": true
+    }
+  });
+  map.on("click", "clusters", (e) => {
+    const f = map.queryRenderedFeatures(e.point, { layers: ["clusters"] })[0];
+    const src = map.getSource("spots");
+    src.getClusterExpansionZoom(f.properties.cluster_id, (err, zoom) => {
+      if (!err) map.easeTo({ center: f.geometry.coordinates, zoom });
+    });
+  });
+  map.on("click", "pins", (e) => {
+    const id = e.features[0].properties.id;
+    const spot = state.spots.find(s => s.id === id);
+    if (spot) openSpot(spot);
+  });
+  map.on("click", "tracks-drive", onTrackClick);
+  map.on("click", "tracks-foot", onTrackClick);
+  map.on("click", (e) => {
+    const hit = map.queryRenderedFeatures(e.point, { layers: ["pins", "clusters", "tracks-drive", "tracks-foot"] });
+    if (hit.length) return;
+    if (state.measure) {
+      state.measurePts.push(e.lngLat);
+      if (state.measurePts.length === 2) {
+        const d = haversine(state.measurePts[0], state.measurePts[1]);
+        toast(`Distanza ${d < 1 ? Math.round(d * 1000) + " m" : d.toFixed(2) + " km"}`);
+        state.measurePts = [];
+        state.measure = false;
+        $("btnMeasure").classList.remove("on");
+      } else toast("Secondo punto per la distanza");
+      return;
+    }
+    if (state.addMode) openComposer(e.lngLat.lat, e.lngLat.lng);
+  });
+  map.on("mouseenter", "pins", () => map.getCanvas().style.cursor = "pointer");
+  map.on("mouseleave", "pins", () => map.getCanvas().style.cursor = "");
+  renderAll();
+  setLayer("osm");
+});
+
+function emptyFC() { return { type: "FeatureCollection", features: [] }; }
+function visibleSpots() {
+  return state.spots.filter(s => {
+    if (state.filter !== "all" && s.cat !== state.filter) return false;
+    if (state.favOnly && !s.fav) return false;
+    if (state.query) {
+      const blob = (s.name + " " + (s.note || "") + " " + CAT[s.cat].label).toLowerCase();
+      if (!blob.includes(state.query.toLowerCase())) return false;
+    }
+    return true;
+  });
+}
+function syncMap() {
+  const src = map.getSource("spots");
+  if (!src) return;
+  src.setData({
+    type: "FeatureCollection",
+    features: visibleSpots().map(s => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [s.lng, s.lat] },
+      properties: { id: s.id, cat: s.cat, name: s.name }
+    }))
+  });
+}
+function haversine(a, b) {
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const la1 = a.lat * Math.PI / 180, la2 = b.lat * Math.PI / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function distLabel(s) {
+  if (!state.user) return "";
+  const d = haversine(state.user, s);
+  return d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
+}
+
+function setLayer(mode) {
+  state.layer = mode;
+  if (!map.getLayer("sat")) return;
+  for (const id of ["sat", "topo", "cyclo", "esritopo", "hill"]) {
+    if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
+  }
+  const show = { sat: "sat", earth: "sat", topo: "topo", cyclo: "cyclo", esri: "esritopo", hill: "hill" }[mode];
+  if (show && map.getLayer(show)) map.setLayoutProperty(show, "visibility", "visible");
+  if (mode === "earth" || mode === "hill") {
+    map.setTerrain({ source: "dem", exaggeration: state.exager });
+    map.setSky({ "sky-color": "#8ec8ef", "horizon-color": "#f4ecdf", "fog-color": "#d5e4ea", "sky-horizon-blend": 0.55 });
+    map.easeTo({ pitch: state.pitch, duration: 700 });
+  } else {
+    map.setTerrain(null);
+    map.easeTo({ pitch: 0, bearing: 0, duration: 500 });
+  }
+  renderLayers();
+  $("status").textContent = {
+    osm: "OpenStreetMap Liberty: la base più completa sui sentieri e le sterrate mappate.",
+    topo: "OpenTopoMap: curve, sentieri e tracce. Utile in montagna.",
+    cyclo: "CyclOSM: colora il fondo (asfalto, sterrato, ciclabile) più delle mappe stradali normali.",
+    esri: "Esri Topo: rilievo e toponimi, da confrontare con OSM dove una traccia manca.",
+    sat: "Satellite Esri. Guarda se la sterrata c'è davvero, anche se è messa male.",
+    hill: "Rilievo ombreggiato sopra la mappa.",
+    earth: "Vista 3D: satellite sul terreno, per leggere pendii e fondi nudi."
+  }[mode];
+}
+
+function renderLayers() {
+  const items = [
+    ["osm", "Mappa OSM"],
+    ["topo", "Topo"],
+    ["cyclo", "Fondi CyclOSM"],
+    ["esri", "Topo Esri"],
+    ["sat", "Satellite"],
+    ["hill", "Rilievo"],
+    ["earth", "3D Earth"]
+  ];
+  $("layers").innerHTML = items.map(([id, label]) =>
+    `<button type="button" data-layer="${id}" class="${state.layer === id ? "on" : ""}">${label}</button>`
+  ).join("") +
+    `<button type="button" data-overlay="hike" class="${state.hikeOn ? "on" : ""}">Sentieri a piedi</button>` +
+    `<button type="button" data-overlay="mtb" class="${state.mtbOn ? "on" : ""}">Tracce MTB</button>`;
+  $("layers").querySelectorAll("[data-layer]").forEach(b => b.onclick = () => setLayer(b.dataset.layer));
+  $("layers").querySelectorAll("[data-overlay]").forEach(b => b.onclick = () => {
+    const key = b.dataset.overlay;
+    if (key === "hike") state.hikeOn = !state.hikeOn;
+    if (key === "mtb") state.mtbOn = !state.mtbOn;
+    if (map.getLayer("hike")) map.setLayoutProperty("hike", "visibility", state.hikeOn ? "visible" : "none");
+    if (map.getLayer("mtb")) map.setLayoutProperty("mtb", "visibility", state.mtbOn ? "visible" : "none");
+    renderLayers();
+    toast(key === "hike" ? "Sentieri segnati Waymarked Trails" : "Tracce mountain bike");
+  });
+}
+
+function renderFilters() {
+  const counts = Object.fromEntries(CATS.map(c => [c.id, state.spots.filter(s => s.cat === c.id).length]));
+  const all = state.spots.length;
+  $("filters").innerHTML = `<button class="chip ${state.filter === "all" && !state.favOnly ? "on" : ""}" data-f="all"><span class="dot" style="background:#1b3328;color:#f4ecdf">∞</span> Tutti <small>${all}</small></button>` +
+    CATS.map(c => `<button class="chip ${state.filter === c.id ? "on" : ""}" data-f="${c.id}"><span class="dot" style="background:${c.color}">${glyphChar(c.id)}</span> ${c.label} <small>${counts[c.id]}</small></button>`).join("") +
+    `<button class="chip ${state.favOnly ? "on" : ""}" data-f="fav"><span class="dot" style="background:#e3a14a">★</span> Preferiti</button>`;
+  $("filters").querySelectorAll(".chip").forEach(btn => btn.onclick = () => {
+    if (btn.dataset.f === "fav") { state.favOnly = !state.favOnly; }
+    else { state.filter = btn.dataset.f; state.favOnly = false; }
+    renderAll();
+  });
+}
+function glyphChar(id) {
+  return { tenda: "⛺", verifica: "?", acqua: "🚰", rifiuti: "🗑", picnic: "🪑" }[id];
+}
+
+function renderPanel() {
+  const body = $("panelBody");
+  if (state.section === "map") {
+    $("panelTitle").textContent = "Mappa";
+    $("panelSub").textContent = "Livelli, fondi 4x4 e vista 3D.";
+    body.innerHTML = `
+      <div class="group">
+        <h3>Zone rapide</h3>
+        ${REGIONS.map((r, i) => `<button class="spot" data-reg="${i}"><span class="dot"></span><div><b>${r[0]}</b><span>Vai e carica i punti OSM</span></div></button>`).join("")}
+      </div>
+      <div class="group">
+        <h3>Rilievo 3D</h3>
+        <label>Inclinazione ${state.pitch}°<input class="slider" id="pitch" type="range" min="20" max="70" value="${state.pitch}"></label>
+        <label>Esagerazione rilievo ${state.exager.toFixed(2)}<input class="slider" id="ex" type="range" min="60" max="220" value="${Math.round(state.exager * 100)}"></label>
+        <p class="sub">Fondi 4x4 colora le sterrate OSM: giallo percorribile, arancio messo male, rosso solo 4x4, viola tratteggiato solo a piedi. CyclOSM e il satellite servono a controllare se la traccia c'è davvero. Non esiste una mappa libera più completa di OpenStreetMap sulle sterrate europee: Esri e il satellite coprono i buchi visivi.</p>
+      </div>
+      <div class="group">
+        <h3>Dati</h3>
+        <button class="spot" id="exportJson"><div><b>Esporta i miei punti</b><span>JSON di backup</span></div></button>
+        <button class="spot" id="exportGpx"><div><b>Esporta GPX visibile</b><span>Per GPS e app outdoor</span></div></button>
+        <button class="spot" id="importJson"><div><b>Importa JSON</b><span>Ripristina un backup</span></div></button>
+      </div>
+      <div class="legal">Il campeggio libero in Italia è spesso vietato fuori dalle aree attrezzate. Il bivacco d'emergenza in montagna dipende da regione, quota e parco. Questa mappa non è un permesso.</div>`;
+    body.querySelectorAll("[data-reg]").forEach(b => b.onclick = () => {
+      const r = REGIONS[+b.dataset.reg];
+      map.flyTo({ center: [r[1], r[2]], zoom: r[3], essential: true });
+      setTimeout(loadOsm, 900);
+    });
+    $("pitch").oninput = (e) => { state.pitch = +e.target.value; if (state.layer === "earth" || state.layer === "hill") map.easeTo({ pitch: state.pitch, duration: 200 }); };
+    $("ex").oninput = (e) => { state.exager = e.target.value / 100; if (map.getTerrain()) map.setTerrain({ source: "dem", exaggeration: state.exager }); };
+    $("exportJson").onclick = exportJson;
+    $("exportGpx").onclick = exportGpx;
+    $("importJson").onclick = importJson;
+    return;
+  }
+  $("panelTitle").textContent = "Segnaposto";
+  $("panelSub").textContent = state.filter === "all" ? "Tutte le icone, divise per tipo." : `Solo ${CAT[state.filter].label.toLowerCase()} sulla mappa.`;
+  const q = state.query;
+  const groups = CATS.filter(c => state.filter === "all" || state.filter === c.id).map(c => {
+    const items = visibleSpots().filter(s => s.cat === c.id)
+      .sort((a, b) => (state.user ? haversine(state.user, a) - haversine(state.user, b) : a.name.localeCompare(b.name, "it")));
+    return { c, items };
+  });
+  body.innerHTML = `<input class="listsearch" id="listQ" placeholder="Filtra per nome o nota" value="${escapeHtml(q)}" />` +
+    groups.map(({ c, items }) => `
+      <section class="group">
+        <h3><span class="dot" style="display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:${c.color}">${glyphChar(c.id)}</span> ${c.label} · ${items.length}</h3>
+        ${items.length ? items.slice(0, 80).map(s => `
+          <button class="spot ${state.selected === s.id ? "active" : ""}" data-id="${s.id}">
+            <span class="dot" style="width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:${c.color}">${glyphChar(c.id)}</span>
+            <div><b>${escapeHtml(s.name)}</b><span>${escapeHtml(s.note || c.hint)}</span></div>
+            <em>${distLabel(s) || (s.source === "osm" ? "OSM" : "mio")}</em>
+          </button>`).join("") : `<div class="empty">Nessun ${c.label.toLowerCase()} con questo filtro. Avvicinati e carica OSM, oppure aggiungi un punto.</div>`}
+      </section>`).join("") +
+    `<div class="group"><h3>Zaino</h3>${CHECKS.map((item, i) => `<label class="check"><input type="checkbox" data-ck="${i}" ${state.checks[i] ? "checked" : ""}/> ${item}</label>`).join("")}</div>`;
+  $("listQ").oninput = (e) => { state.query = e.target.value; syncMap(); renderFilters(); const pos = e.target.selectionStart; renderPanel(); const again = $("listQ"); if (again) { again.focus(); again.selectionStart = again.selectionEnd = pos; } };
+  body.querySelectorAll(".spot[data-id]").forEach(b => b.onclick = () => {
+    const s = state.spots.find(x => x.id === b.dataset.id);
+    openSpot(s);
+    map.flyTo({ center: [s.lng, s.lat], zoom: Math.max(map.getZoom(), 14), essential: true });
+  });
+  body.querySelectorAll("[data-ck]").forEach(box => box.onchange = () => { state.checks[box.dataset.ck] = box.checked; saveStore(); });
+}
+
+function renderAll() {
+  renderFilters();
+  renderLayers();
+  renderPanel();
+  syncMap();
+  $("tabMap").classList.toggle("on", state.section === "map");
+  $("tabSpots").classList.toggle("on", state.section === "spots");
+}
+
+function openSpot(s) {
+  state.selected = s.id;
+  const d = $("drawer");
+  d.classList.add("show");
+  d.innerHTML = `
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+      <div>
+        <div class="meta">${glyphChar(s.cat)} ${CAT[s.cat].label} · ${s.source === "osm" ? "OpenStreetMap" : "punto tuo"} ${s.verified ? "· verificato" : ""}</div>
+        <h3>${escapeHtml(s.name)}</h3>
+      </div>
+      <button class="quiet" id="closeDrawer">Chiudi</button>
+    </div>
+    <div class="meta">${s.lat.toFixed(5)}, ${s.lng.toFixed(5)} ${distLabel(s) ? "· " + distLabel(s) + " da te" : ""}</div>
+    <p style="margin:6px 0 0;font-size:14px;line-height:1.45">${escapeHtml(s.note || "Nessuna nota. Aggiungine una se è un punto tuo.")}</p>
+    <div class="actions">
+      <a href="${gmaps(s)}" target="_blank" rel="noopener">Google Maps</a>
+      <a href="${gstreet(s)}" target="_blank" rel="noopener">Street View</a>
+      <button type="button" id="openSv">Vista strada qui</button>
+      <a href="${gearth(s)}" target="_blank" rel="noopener">Google Earth</a>
+      <a href="${gdir(s)}" target="_blank" rel="noopener">Indicazioni</a>
+      <button type="button" id="copyC">Copia coordinate</button>
+      <button type="button" id="fav">${s.fav ? "★ Preferito" : "☆ Preferito"}</button>
+      <button type="button" id="wx">Meteo</button>
+      ${s.source === "mio" ? `<button type="button" id="verify">${s.cat === "verifica" ? "Segna tenda ok" : "Rimetti da verificare"}</button><button type="button" id="del">Elimina</button>` : `<button type="button" id="saveCopy">Salva nei miei</button>`}
+    </div>
+    <div class="weather" id="wxBox" hidden></div>
+    <div class="legal">Controlla sempre cartelli, proprietà privata e regolamenti del parco. Un'icona sulla mappa non significa che si possa piantare la tenda.</div>`;
+  $("closeDrawer").onclick = () => { d.classList.remove("show"); state.selected = null; };
+  $("openSv").onclick = () => {
+    $("svFrame").src = svEmbed(s);
+    $("sv").classList.add("show");
+    setLayer("earth");
+  };
+  $("copyC").onclick = () => { navigator.clipboard.writeText(`${s.lat.toFixed(6)}, ${s.lng.toFixed(6)}`); toast("Coordinate copiate"); };
+  $("fav").onclick = () => { s.fav = !s.fav; if (s.source === "mio") saveStore(); openSpot(s); renderAll(); };
+  $("wx").onclick = () => loadWeather(s);
+  if ($("verify")) $("verify").onclick = () => {
+    s.cat = s.cat === "verifica" ? "tenda" : "verifica";
+    s.verified = s.cat === "tenda";
+    saveStore(); openSpot(s); renderAll();
+  };
+  if ($("del")) $("del").onclick = () => {
+    state.spots = state.spots.filter(x => x.id !== s.id);
+    saveStore(); d.classList.remove("show"); renderAll(); toast("Punto eliminato");
+  };
+  if ($("saveCopy")) $("saveCopy").onclick = () => {
+    state.spots.push({ ...s, id: uid(), source: "mio", fav: true });
+    saveStore(); renderAll(); toast("Copiato nei tuoi segnaposto");
+  };
+  renderPanel();
+}
+
+async function loadWeather(s) {
+  const box = $("wxBox");
+  box.hidden = false;
+  box.innerHTML = `<div>Meteo…</div>`;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${s.lat}&longitude=${s.lng}&current=temperature_2m,wind_speed_10m,precipitation,weather_code&daily=sunrise,sunset,precipitation_sum&forecast_days=2&timezone=auto`;
+    const data = await (await fetch(url)).json();
+    const cur = data.current;
+    const code = wxText(cur.weather_code);
+    box.innerHTML = `
+      <div><span>Ora</span><strong>${Math.round(cur.temperature_2m)}°</strong>${code}</div>
+      <div><span>Vento</span><strong>${Math.round(cur.wind_speed_10m)} km/h</strong>pioggia ${cur.precipitation} mm</div>
+      <div><span>Luce</span><strong>${(data.daily.sunrise[0] || "").slice(11, 16)}</strong>tramonto ${(data.daily.sunset[0] || "").slice(11, 16)}</div>`;
+  } catch { box.innerHTML = `<div>Meteo non disponibile ora.</div>`; }
+}
+function wxText(code) {
+  if (code === 0) return "sereno";
+  if (code < 3) return "poco nuvoloso";
+  if (code < 50) return "coperto";
+  if (code < 70) return "pioggia";
+  if (code < 80) return "neve";
+  return "rovesci";
+}
+
+function openComposer(lat, lng) {
+  const d = $("drawer");
+  d.classList.add("show");
+  d.innerHTML = `
+    <h3>Nuovo segnaposto</h3>
+    <p class="meta">${lat.toFixed(5)}, ${lng.toFixed(5)} — scegli l'icona e una nota che ti servirà sul posto.</p>
+    <form class="formgrid" id="composer">
+      <select name="cat">${CATS.map(c => `<option value="${c.id}" ${c.id === state.addCat ? "selected" : ""}>${c.label}</option>`).join("")}</select>
+      <input name="name" required placeholder="Nome del posto" />
+      <textarea name="note" rows="3" placeholder="Acqua a 200 m, vento da nord, divieto fuochi, fondo sassoso…"></textarea>
+      <div class="actions">
+        <button class="primary" type="submit">Salva sulla mappa</button>
+        <button class="quiet" type="button" id="cancelAdd">Annulla</button>
+      </div>
+    </form>`;
+  $("cancelAdd").onclick = () => d.classList.remove("show");
+  $("composer").onsubmit = (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const spot = {
+      id: uid(), cat: fd.get("cat"), lat, lng, name: fd.get("name").trim(), note: fd.get("note").trim(),
+      source: "mio", verified: fd.get("cat") === "tenda", fav: false, addedAt: Date.now()
+    };
+    state.spots.push(spot);
+    saveStore();
+    state.addMode = false;
+    $("btnAdd").classList.remove("on");
+    renderAll();
+    openSpot(spot);
+    toast("Segnaposto salvato su questo dispositivo");
+  };
+}
+
+async function loadOsm() {
+  if (map.getZoom() < 9) { toast("Avvicinati almeno allo zoom 9 per non chiedere troppi dati"); return; }
+  const b = map.getBounds();
+  const bbox = `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
+  const want = state.filter === "all" ? CATS.map(c => c.id) : [state.filter];
+  const parts = [];
+  if (want.includes("acqua")) parts.push(
+    `node["amenity"="drinking_water"](${bbox});`,
+    `node["amenity"="water_point"](${bbox});`,
+    `node["man_made"="water_tap"](${bbox});`,
+    `node["natural"="spring"]["drinking_water"!="no"](${bbox});`
+  );
+  if (want.includes("rifiuti")) parts.push(
+    `node["amenity"="waste_disposal"](${bbox});`,
+    `node["amenity"="recycling"](${bbox});`,
+    map.getZoom() >= 14 ? `node["amenity"="waste_basket"](${bbox});` : ""
+  );
+  if (want.includes("picnic")) parts.push(
+    `nwr["tourism"="picnic_site"](${bbox});`,
+    `nwr["leisure"="picnic_table"](${bbox});`
+  );
+  if (want.includes("tenda") || want.includes("verifica")) parts.push(
+    `nwr["tourism"="wilderness_hut"](${bbox});`,
+    `nwr["amenity"="shelter"](${bbox});`,
+    `nwr["tourism"="camp_site"](${bbox});`
+  );
+  const q = `[out:json][timeout:25];(${parts.join("\n")});out center 180;`;
+  $("status").textContent = "Cerco punti OpenStreetMap in questa zona…";
+  try {
+    let res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: q });
+    if (!res.ok) res = await fetch("https://overpass.kumi.systems/api/interpreter", { method: "POST", body: q });
+    const data = await res.json();
+    const fresh = (data.elements || []).map(el => osmToSpot(el)).filter(Boolean);
+    const keep = state.spots.filter(s => s.source !== "osm" || !inBbox(s, b));
+    const seen = new Set(keep.map(s => s.id));
+    for (const s of fresh) if (!seen.has(s.id)) { keep.push(s); seen.add(s.id); }
+    state.spots = keep;
+    renderAll();
+    $("status").textContent = `Zona aggiornata: ${fresh.length} punti OSM letti. I cestini urbani compaiono solo da zoom 14.`;
+    toast(`${fresh.length} punti OSM in mappa`);
+  } catch (err) {
+    $("status").textContent = "Overpass non risponde. I tuoi punti restano disponibili.";
+    toast("Rete OSM non disponibile");
+  }
+}
+function inBbox(s, b) { return s.lat >= b.getSouth() && s.lat <= b.getNorth() && s.lng >= b.getWest() && s.lng <= b.getEast(); }
+function osmToSpot(el) {
+  const lat = el.lat || el.center?.lat;
+  const lng = el.lon || el.center?.lon;
+  if (lat == null || lng == null) return null;
+  const t = el.tags || {};
+  let cat = "verifica";
+  if (t.amenity === "drinking_water" || t.amenity === "water_point" || t.man_made === "water_tap" || t.natural === "spring") cat = "acqua";
+  else if (t.amenity === "waste_disposal" || t.amenity === "recycling" || t.amenity === "waste_basket") cat = "rifiuti";
+  else if (t.tourism === "picnic_site" || t.leisure === "picnic_table") cat = "picnic";
+  else if (t.tourism === "wilderness_hut" || t.amenity === "shelter") cat = "tenda";
+  else if (t.tourism === "camp_site") cat = t.fee === "no" || t.backcountry === "yes" ? "tenda" : "verifica";
+  if (state.filter !== "all" && cat !== state.filter && !(state.filter === "verifica" && cat === "tenda")) return null;
+  const name = t.name || t.operator || defaultName(cat, t);
+  const note = [t.description, t.fee ? `tariffa: ${t.fee}` : "", t.opening_hours ? `orari: ${t.opening_hours}` : "", t.access ? `accesso: ${t.access}` : "", "Dato OpenStreetMap, da confermare sul posto."].filter(Boolean).join(" · ");
+  return { id: `osm-${el.type}-${el.id}`, cat, lat, lng, name, note, source: "osm", verified: cat === "tenda" && !!t.name, fav: false };
+}
+function defaultName(cat, t) {
+  if (cat === "acqua") return t.natural === "spring" ? "Sorgente" : "Punto acqua";
+  if (cat === "rifiuti") return t.amenity === "waste_basket" ? "Cestino" : "Raccolta rifiuti";
+  if (cat === "picnic") return "Area picnic";
+  if (t.tourism === "camp_site") return "Area campeggio OSM";
+  if (t.amenity === "shelter") return "Riparo";
+  return "Riparo o bivacco";
+}
+
+function exportJson() {
+  const blob = new Blob([JSON.stringify(state.spots.filter(s => s.source === "mio"), null, 2)], { type: "application/json" });
+  download(blob, "wildcamp-punti.json");
+}
+function exportGpx() {
+  const pts = visibleSpots().map(s => `  <wpt lat="${s.lat}" lon="${s.lng}"><name>${escapeXml(s.name)}</name><desc>${escapeXml(CAT[s.cat].label + " — " + (s.note || ""))}</desc><type>${s.cat}</type></wpt>`).join("\n");
+  const gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="WildCamp">\n${pts}\n</gpx>`;
+  download(new Blob([gpx], { type: "application/gpx+xml" }), "wildcamp.gpx");
+}
+function importJson() {
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = "application/json";
+  input.onchange = () => {
+    const file = input.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const rows = JSON.parse(reader.result);
+        if (!Array.isArray(rows)) throw new Error("formato");
+        for (const r of rows) {
+          if (r.lat == null || r.lng == null) continue;
+          state.spots.push({ ...r, id: uid(), source: "mio" });
+        }
+        saveStore(); renderAll(); toast("Punti importati");
+      } catch { toast("File non valido"); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+function download(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function escapeHtml(s) { return String(s || "").replace(/[&<>"']/g, ch => ({ "&": "&", "<": "<", ">": ">", '"': """, "'": "&#39;" }[ch])); }
+function escapeXml(s) { return escapeHtml(s); }
+
+$("tabMap").onclick = () => { state.section = "map"; $("panel").classList.remove("collapsed"); renderAll(); };
+$("tabSpots").onclick = () => { state.section = "spots"; $("panel").classList.remove("collapsed"); renderAll(); };
+$("panelToggle").onclick = () => $("panel").classList.toggle("collapsed");
+$("btnAdd").onclick = () => {
+  state.addMode = !state.addMode;
+  state.measure = false;
+  $("btnAdd").classList.toggle("on", state.addMode);
+  $("btnMeasure").classList.remove("on");
+  toast(state.addMode ? "Tocca la mappa per piazzare l'icona" : "Aggiunta disattivata");
+};
+$("btnMeasure").onclick = () => {
+  state.measure = !state.measure;
+  state.addMode = false;
+  state.measurePts = [];
+  $("btnMeasure").classList.toggle("on", state.measure);
+  $("btnAdd").classList.remove("on");
+  if (state.measure) toast("Tocca due punti sulla mappa");
+};
+$("btnOsm").onclick = loadOsm;
+$("btnTracks").onclick = () => {
+  state.tracksOn = !state.tracksOn;
+  $("btnTracks").classList.toggle("on", state.tracksOn);
+  $("legend").hidden = !state.tracksOn;
+  if (state.tracksOn) {
+    if (map.getZoom() < 12) map.flyTo({ zoom: 12, center: map.getCenter() });
+    loadTracks();
+    renderLegend();
+    toast("Coloro sterrate e sentieri solo pedonali");
+  } else toast("Livello fondi spento");
+};
+$("btnLocate").onclick = () => {
+  if (!navigator.geolocation) return toast("Geolocalizzazione non disponibile");
+  navigator.geolocation.getCurrentPosition(pos => {
+    state.user = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    map.flyTo({ center: [state.user.lng, state.user.lat], zoom: 13 });
+    new maplibregl.Marker({ color: "#e3a14a" }).setLngLat([state.user.lng, state.user.lat]).addTo(map);
+    renderAll();
+    toast("Posizione trovata. Le distanze sono attive.");
+  }, () => toast("Permesso posizione negato"));
+};
+$("searchForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const q = $("q").value.trim();
+  if (!q) return;
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&limit=1`;
+    const rows = await (await fetch(url, { headers: { "Accept-Language": "it" } })).json();
+    if (!rows[0]) return toast("Luogo non trovato");
+    map.flyTo({ center: [+rows[0].lon, +rows[0].lat], zoom: 12 });
+    toast(rows[0].display_name.split(",").slice(0, 2).join(","));
+  } catch { toast("Ricerca non disponibile"); }
+};
+$("svClose").onclick = () => { $("sv").classList.remove("show"); $("svFrame").src = "about:blank"; };
+map.on("moveend", () => {
+  const c = map.getCenter();
+  if ($("status") && state.layer) {
+    const base = $("status").textContent.split(" · ")[0];
+    $("status").textContent = `${base} · ${c.lat.toFixed(3)}, ${c.lng.toFixed(3)} · zoom ${map.getZoom().toFixed(1)}`;
+  }
+  if (state.tracksOn) loadTracks();
+});
+
+const ROAD = {
+  asfalto: ["Asfalto", "#8aa0b5", "carrabile normale"],
+  sterrata: ["Sterrata", "#e0b13a", "fondo duro o ghiaia, spesso ok col fuoristrada"],
+  difficile: ["Messa male", "#e07a3d", "terra, erba o grade 3: vai piano"],
+  solo4x4: ["Solo 4x4", "#e24b4b", "grade 4-5, fango o 4wd_only"],
+  incerta: ["Sterrata incerta", "#d9c48a", "traccia senza fondo indicato"],
+  pedonale: ["Solo pedonale", "#8d7cff", "sentiero, mulattiera chiusa o a piedi"]
+};
+function renderLegend() {
+  const el = $("legend");
+  if (!el) return;
+  el.hidden = !state.tracksOn;
+  el.innerHTML = `<b>Fondo per il fuoristrada</b>` + Object.entries(ROAD).map(([id, row]) =>
+    `<button type="button" data-road="${id}" class="${state.roadFilter === id ? "on" : ""}"><i style="background:${row[1]};${id === "pedonale" ? "height:0;border-top:2px dashed " + row[1] : ""}"></i>${row[0]}</button>`
+  ).join("") + `<button type="button" data-road="drive" class="${state.roadFilter === "drive" ? "on" : ""}">Nascondi i pedonali</button><button type="button" data-road="all" class="${state.roadFilter === "all" ? "on" : ""}">Mostra tutto</button>`;
+  el.querySelectorAll("button").forEach(b => b.onclick = () => { state.roadFilter = b.dataset.road; applyRoadFilter(); renderLegend(); });
+}
+function applyRoadFilter() {
+  if (!map.getLayer("tracks-drive")) return;
+  const drive = ["sterrata", "difficile", "solo4x4", "incerta", "asfalto"];
+  const showDrive = state.roadFilter === "all" || state.roadFilter === "drive" || drive.includes(state.roadFilter);
+  const driveMatch = state.roadFilter === "all" || state.roadFilter === "drive" ? drive : [state.roadFilter];
+  map.setFilter("tracks-drive", showDrive && drive.includes(driveMatch[0]) ? ["match", ["get", "cls"], driveMatch, true, false] : ["==", ["get", "cls"], "niente"]);
+  const showFoot = state.roadFilter === "all" || state.roadFilter === "pedonale";
+  map.setFilter("tracks-foot", showFoot ? ["==", ["get", "cls"], "pedonale"] : ["==", ["get", "cls"], "niente"]);
+}
+function classifyWay(tags) {
+  const h = tags.highway || "";
+  const surface = (tags.surface || "").toLowerCase();
+  const grade = tags.tracktype || "";
+  const smooth = (tags.smoothness || "").toLowerCase();
+  const blocked = ["no", "private"].includes(tags.motor_vehicle) || tags.vehicle === "no" || tags.access === "no" || tags.access === "private";
+  const only4 = tags["4wd_only"] === "yes" || /horrible|very_bad|impassable/.test(smooth) || grade === "grade4" || grade === "grade5";
+  const paved = /asphalt|paved|concrete|chipseal|paving_stones/.test(surface);
+  const soft = /mud|sand|grass|dirt|ground|earth|rock|pebblestone/.test(surface);
+  if (h === "steps" || h === "footway" || h === "pedestrian") return "pedonale";
+  if (h === "path" || h === "bridleway") {
+    if (tags.motor_vehicle === "yes" || tags["4wd_only"] === "yes" || h === "track") return only4 ? "solo4x4" : "difficile";
+    return "pedonale";
+  }
+  if (blocked && h !== "track") return "pedonale";
+  if (only4) return "solo4x4";
+  if (grade === "grade3" || soft) return "difficile";
+  if (h === "track" || /gravel|unpaved|fine_gravel|compacted/.test(surface)) {
+    if (grade === "grade1" || grade === "grade2" || /gravel|compacted|fine_gravel/.test(surface)) return "sterrata";
+    if (!grade && !surface) return "incerta";
+    return "difficile";
+  }
+  if (paved) return "asfalto";
+  if (h === "track") return "incerta";
+  return null;
+}
+let trackTimer = 0;
+function loadTracks() {
+  clearTimeout(trackTimer);
+  trackTimer = setTimeout(fetchTracks, 500);
+}
+async function fetchTracks() {
+  if (!state.tracksOn || map.getZoom() < 11) {
+    $("status").textContent = "Avvicinati almeno allo zoom 11 per leggere i fondi.";
+    return;
+  }
+  const b = map.getBounds();
+  const bbox = `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
+  const q = `[out:json][timeout:25];(
+    way["highway"="track"](${bbox});
+    way["highway"="path"](${bbox});
+    way["highway"="footway"](${bbox});
+    way["highway"="pedestrian"](${bbox});
+    way["highway"="bridleway"](${bbox});
+    way["4wd_only"="yes"](${bbox});
+    way["highway"="unclassified"]["surface"~"unpaved|gravel|dirt|ground|earth|grass|mud|sand|fine_gravel|compacted"](${bbox});
+    way["highway"="service"]["surface"~"unpaved|gravel|dirt|ground|earth|grass|mud|sand"](${bbox});
+    way["highway"="residential"]["surface"~"unpaved|gravel|dirt|ground|earth"](${bbox});
+    way["motor_vehicle"="no"]["highway"~"track|path|service|unclassified"](${bbox});
+  );out geom 220;`;
+  $("status").textContent = "Leggo sterrate e sentieri OpenStreetMap…";
+  try {
+    let res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: q });
+    if (!res.ok) res = await fetch("https://overpass.kumi.systems/api/interpreter", { method: "POST", body: q });
+    const data = await res.json();
+    const features = (data.elements || []).map(el => {
+      if (!el.geometry) return null;
+      const cls = classifyWay(el.tags || {});
+      if (!cls) return null;
+      const coords = el.geometry.map(p => [p.lon, p.lat]).filter(p => p[0] != null);
+      if (coords.length < 2) return null;
+      const t = el.tags || {};
+      const mid = coords[Math.floor(coords.length / 2)];
+      return {
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: coords },
+        properties: {
+          cls, name: t.name || t.ref || ROAD[cls][0],
+          detail: [t.highway, t.tracktype, t.surface, t.smoothness, t.motor_vehicle ? "veicoli " + t.motor_vehicle : "", t["4wd_only"] === "yes" ? "4wd_only" : ""].filter(Boolean).join(" · "),
+          lng: mid[0], lat: mid[1]
+        }
+      };
+    }).filter(Boolean);
+    const src = map.getSource("tracks");
+    if (src) src.setData({ type: "FeatureCollection", features });
+    applyRoadFilter();
+    const n = features.filter(f => f.properties.cls !== "pedonale").length;
+    const p = features.length - n;
+    $("status").textContent = `${n} tratti carrabili o sterrati, ${p} solo pedonali. Il satellite conferma se la traccia è davvero percorribile.`;
+    toast("Fondi aggiornati");
+  } catch {
+    toast("Rete strade non disponibile");
+  }
+}
+function onTrackClick(e) {
+  const f = e.features && e.features[0];
+  if (!f) return;
+  const p = f.properties;
+  const info = ROAD[p.cls] || ROAD.incerta;
+  const s = { lat: +p.lat, lng: +p.lng, name: p.name };
+  const d = $("drawer");
+  d.classList.add("show");
+  d.innerHTML = `
+    <div class="meta" style="color:${info[1]}">${info[0]}</div>
+    <h3>${escapeHtml(p.name)}</h3>
+    <p style="margin:6px 0;font-size:14px">${escapeHtml(p.detail || info[2])}</p>
+    <p class="meta">${info[2]}. Un tag OSM non sostituisce il sopralluogo: una sterrata grade 5 può essere chiusa da frana o catena.</p>
+    <div class="actions">
+      <a href="${gmaps(s)}" target="_blank" rel="noopener">Google Maps</a>
+      <a href="${gdir(s)}" target="_blank" rel="noopener">Indicazioni</a>
+      <a href="${gstreet(s)}" target="_blank" rel="noopener">Street View</a>
+      <a href="${gearth(s)}" target="_blank" rel="noopener">Google Earth</a>
+      <button type="button" id="closeRoad">Chiudi</button>
+    </div>`;
+  $("closeRoad").onclick = () => d.classList.remove("show");
+}
+
+map.on("error", (e) => {
+  const msg = e && e.error ? e.error.message : "errore mappa";
+  if (!/glyphs|sprite|image/i.test(msg)) $("status").textContent = "Mappa: " + msg;
+});
+
+loadStore();
+renderFilters();
+renderPanel();
+</script>
+</body>
+</html>
