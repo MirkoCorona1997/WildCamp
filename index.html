@@ -212,7 +212,7 @@
       </div>
       <div>
         <h1>WildCamp</h1>
-        <p id="versionTag">v4 · 9 ott 2026</p>
+        <p id="versionTag">v5 · mappa riparata</p>
       </div>
     </div>
     <form class="search" id="searchForm">
@@ -236,7 +236,7 @@
       <button type="button" id="btnOsm">Carica zona OSM</button>
     </div>
     <div class="legend" id="legend" hidden></div>
-    <div class="status" id="status">WildCamp v4. Se qui leggi ancora un testo senza v4, GitHub sta mostrando il file vecchio.</div>
+    <div class="status" id="status">WildCamp v5. Se la mappa non compare, attendi qualche secondo.</div>
     <aside class="panel" id="panel">
       <div class="head">
         <div>
@@ -259,7 +259,7 @@
   </div>
 </div>
 <script>
-document.getElementById("versionTag").textContent = "v4 · script ok";
+document.getElementById("versionTag").textContent = "v5 · script ok";
 </script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
@@ -1011,7 +1011,15 @@ function download(blob, name) {
   a.href = URL.createObjectURL(blob); a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-function escapeHtml(s) { return String(s || "").replace(/[&<>"']/g, ch => ({ "&": "&", "<": "<", ">": ">", '"': """, "'": "&#39;" }[ch])); }
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"']/g, function (ch) {
+    if (ch === "&") return "&amp;";
+    if (ch === "<") return "&lt;";
+    if (ch === ">") return "&gt;";
+    if (ch === '"') return "&quot;";
+    return "&#39;";
+  });
+}
 function escapeXml(s) { return escapeHtml(s); }
 
 $("tabMap").onclick = () => { state.section = "map"; $("panel").classList.remove("collapsed"); renderAll(); };
