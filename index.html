@@ -58,7 +58,7 @@
     <button type="button" id="filters">Filtri</button>
     <button type="button" id="openList">Lista</button>
   </div>
-  <div id="ver">v25</div>
+  <div id="ver">v26</div>
   <section class="sheet" id="sheet"></section>
   <section class="card" id="card"></section>
   <section id="list"></section>
@@ -189,7 +189,7 @@ document.getElementById("filters").onclick = (ev) => {
   });
 };
 
-function saveSpots() { saveSpots(); }
+function saveSpots() { localStorage.setItem("wildcamp-spots", JSON.stringify(spots)); }
 function backupFile() {
   const blob = new Blob([JSON.stringify({ spots: spots, saved: new Date().toISOString() }, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
