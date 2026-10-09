@@ -48,7 +48,7 @@
     <button type="button" id="here">Posizione</button>
     <button type="button" id="filters">Filtri</button>
   </div>
-  <div id="ver">v23</div>
+  <div id="ver">v24</div>
   <section class="sheet" id="sheet"></section>
   <section class="card" id="card"></section>
 </div>
@@ -122,6 +122,8 @@ const ICONS = [
   ["albero", "🌳", "#3f7d46"],
   ["domanda", "❓", "#c9a35c"]
 ];
+const spots = JSON.parse(localStorage.getItem("wildcamp-spots") || "[]");
+const pins = [];
 const hidden = new Set(JSON.parse(localStorage.getItem("wildcamp-hidden") || "[]"));
 let aim = null;
 function hideAim() { if (aim) { aim.remove(); aim = null; } }
