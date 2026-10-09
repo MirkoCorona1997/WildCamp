@@ -60,7 +60,7 @@
     <button type="button" id="layers">Livelli</button>
     <button type="button" id="openList">Lista</button>
   </div>
-  <div id="ver">v28</div>
+  <div id="ver">v29</div>
   <section class="sheet" id="sheet"></section>
   <section class="card" id="card"></section>
   <section id="list"></section>
@@ -72,9 +72,10 @@ const map = new maplibregl.Map({
   style: {
     version: 8,
     sources: {
-      osm: { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenStreetMap" },
-      topo: { type: "raster", tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "© OpenTopoMap" },
-      sat: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "© Esri" }
+      osm: { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 19, attribution: "© OpenStreetMap" },
+      topo: { type: "raster", tiles: ["https://tile.opentopomap.org/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 17, attribution: "© OpenTopoMap" },
+      sat: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, maxzoom: 19, attribution: "© Esri" },
+      dem: { type: "raster-dem", tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"], encoding: "terrarium", tileSize: 256, maxzoom: 15 }
     },
     layers: [
       { id: "osm", type: "raster", source: "osm" },
@@ -151,6 +152,32 @@ function closeCard() {
   document.getElementById("card").className = "card";
   hideAim();
 }
+function photoDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("wildcamp", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("photos");
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function savePhoto(uid, data) {
+  const db = await photoDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction("photos", "readwrite");
+    tx.objectStore("photos").put(data, String(uid));
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function loadPhoto(uid) {
+  const db = await photoDb();
+  return new Promise((resolve) => {
+    const tx = db.transaction("photos", "readonly");
+    const req = tx.objectStore("photos").get(String(uid));
+    req.onsuccess = () => resolve(req.result || "");
+    req.onerror = () => resolve("");
+  });
+}
 function pickPhoto(s, done) {
   const input = document.createElement("input");
   input.type = "file";
@@ -160,25 +187,30 @@ function pickPhoto(s, done) {
     if (!file) return;
     const img = new Image();
     img.onload = () => {
-      const scale = Math.min(1, 640 / Math.max(img.width, img.height));
+      const scale = Math.min(1, 1280 / Math.max(img.width, img.height));
       const canvas = document.createElement("canvas");
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
       canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-      s.photo = canvas.toDataURL("image/jpeg", 0.7);
-      saveSpots();
+      s.photo = canvas.toDataURL("image/jpeg", 0.8);
+      savePhoto(s.uid, s.photo).catch(() => {});
       if (done) done();
     };
     img.src = URL.createObjectURL(file);
   };
   input.click();
 }
+async function withPhoto(s, draw) {
+  if (!s.photo) s.photo = await loadPhoto(s.uid);
+  draw();
+}
 function openSpotCard(s) {
+  withPhoto(s, () => {
   const card = document.getElementById("card");
   card.className = "card show";
   card.innerHTML = "<b>" + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b>" +
     (s.photo ? "<img class='photo' src='" + s.photo + "'>" : "") +
-    "<div class='acts'><button type='button' id='photo'>Foto</button><button type='button' id='del'>Togli segnaposto</button><a href='https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lng + "'>Naviga</a><button type='button' id='close'>Chiudi</button></div>";
+    "<div class='acts'><button type='button' id='photo'>Foto</button><button type='button' id='del'>Togli segnaposto</button><a href='https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lng + "'>Naviga</a><a href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=" + s.lat + "," + s.lng + "'>Street View</a><button type='button' id='close'>Chiudi</button></div>";
   document.getElementById("photo").onclick = () => pickPhoto(s, () => openSpotCard(s));
   document.getElementById("del").onclick = () => {
     const n = spots.findIndex(x => x.uid === s.uid);
@@ -188,6 +220,7 @@ function openSpotCard(s) {
     closeCard();
   };
   document.getElementById("close").onclick = closeCard;
+  });
 }
 function drawSpots() {
   pins.forEach(p => p.remove());
@@ -217,7 +250,10 @@ document.getElementById("filters").onclick = (ev) => {
   });
 };
 
-function saveSpots() { localStorage.setItem("wildcamp-spots", JSON.stringify(spots)); }
+function saveSpots() {
+  const slim = spots.map(s => { const c = Object.assign({}, s); delete c.photo; return c; });
+  localStorage.setItem("wildcamp-spots", JSON.stringify(slim));
+}
 function backupFile() {
   const blob = new Blob([JSON.stringify({ spots: spots, saved: new Date().toISOString() }, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
@@ -235,7 +271,14 @@ function renderList() {
   const rows = spots.filter(s => !hidden.has(s.id));
   box.innerHTML = "<header><button type='button' id='closeList'>Mappa</button><button type='button' id='loadBackup'>Carica backup</button></header><div class='icons'>" +
     ICONS.map(i => "<button type='button' data-f='" + i[0] + "' class='" + (hidden.has(i[0]) ? "off" : "") + "'>" + i[1] + "</button>").join("") +
-    "</div>" + (rows.length ? rows.map(s => "<div class='row' data-uid='" + s.uid + "'><b>" + s.emoji + " " + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b>" + (s.photo ? "<img class='photo' src='" + s.photo + "'>" : "") + "<textarea data-note='" + s.uid + "' placeholder='Nota'>" + (s.note || "") + "</textarea><button type='button' data-photo='" + s.uid + "'>Foto</button></div>").join("") : "<p>Nessun segnaposto</p>");
+    "</div><div id='rows'></div>";
+  Promise.all(rows.map(s => withPhoto(s, () => {}))).then(() => {
+    document.getElementById("rows").innerHTML = rows.length ? rows.map(s => "<div class='row' data-uid='" + s.uid + "'><b>" + s.emoji + " " + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b>" + (s.photo ? "<img class='photo' src='" + s.photo + "'>" : "") + "<textarea data-note='" + s.uid + "' placeholder='Nota'>" + (s.note || "") + "</textarea><button type='button' data-photo='" + s.uid + "'>Foto</button></div>").join("") : "<p>Nessun segnaposto</p>";
+    bindList(box);
+  });
+  bindList(box);
+}
+function bindList(box) {
   document.getElementById("closeList").onclick = () => box.classList.remove("show");
   box.querySelectorAll("[data-f]").forEach(b => b.onclick = () => {
     if (hidden.has(b.dataset.f)) hidden.delete(b.dataset.f); else hidden.add(b.dataset.f);
@@ -288,9 +331,12 @@ document.getElementById("layers").onclick = (ev) => {
   ev.stopPropagation();
   const sheet = document.getElementById("sheet");
   sheet.classList.add("show");
-  sheet.innerHTML = "<button type='button' data-layer='osm'>OSM</button><button type='button' data-layer='topo'>Topo</button><button type='button' data-layer='sat'>Satellite</button>";
+  sheet.innerHTML = "<button type='button' data-layer='osm'>OSM</button><button type='button' data-layer='topo'>Topo</button><button type='button' data-layer='sat'>Satellite</button><button type='button' data-layer='earth'>3D Earth</button>";
   sheet.querySelectorAll("[data-layer]").forEach(b => b.onclick = () => {
-    ["osm", "topo", "sat"].forEach(id => map.setLayoutProperty(id, "visibility", id === b.dataset.layer ? "visible" : "none"));
+    const id = b.dataset.layer;
+    ["osm", "topo", "sat"].forEach(x => map.setLayoutProperty(x, "visibility", (id === "earth" ? x === "sat" : x === id) ? "visible" : "none"));
+    if (id === "earth") { map.setTerrain({ source: "dem", exaggeration: 1.4 }); map.easeTo({ pitch: 60 }); }
+    else { map.setTerrain(null); map.easeTo({ pitch: 0, bearing: 0 }); }
     sheet.classList.remove("show");
   });
 };
@@ -312,7 +358,7 @@ map.on("click", (e) => {
   card.className = "card show";
   card.innerHTML = "<b>" + lat.toFixed(5) + ", " + lng.toFixed(5) + "</b><div class='icons'>" +
     ICONS.map(i => "<button type='button' data-i='" + i[0] + "'>" + i[1] + "</button>").join("") +
-    "</div><div class='acts'><a href='https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng + "'>Naviga</a><button type='button' id='close'>Chiudi</button></div>";
+    "</div><div class='acts'><a href='https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng + "'>Naviga</a><a href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=" + lat + "," + lng + "'>Street View</a><button type='button' id='close'>Chiudi</button></div>";
   card.querySelectorAll("[data-i]").forEach(b => b.onclick = () => {
     const icon = ICONS.find(i => i[0] === b.dataset.i);
     spots.push({ uid: Date.now() + Math.random(), id: icon[0], lng, lat, emoji: icon[1], color: icon[2] });
