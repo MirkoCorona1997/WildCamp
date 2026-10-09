@@ -35,6 +35,15 @@
     .sheet button { border-radius: 999px; padding: 6px 8px; background: #efe6d8; color: #14241c; }
     .sheet button.off { opacity: .35; }
     .me { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 18px solid #1d6fd4; filter: drop-shadow(0 0 2px #fff); }
+    #list { display: none; position: absolute; inset: 0; z-index: 9; background: #102019; color: #f4ecdf; padding: calc(10px + env(safe-area-inset-top)) 10px 12px; overflow: auto; font: 14px system-ui, sans-serif; }
+    #list.show { display: block; }
+    #list header { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+    #list header button, #list .row button { background: #efe6d8; color: #14241c; border-radius: 999px; padding: 8px 10px; }
+    #list .icons button { background: #efe6d8; color: #14241c; }
+    #list .icons button.off { opacity: .35; }
+    .row { background: #1b3328; border-radius: 14px; padding: 10px; margin: 8px 0; }
+    .row b { display: block; }
+    .row textarea { width: 100%; min-height: 52px; border: 0; border-radius: 10px; padding: 8px; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -47,10 +56,12 @@
     </form>
     <button type="button" id="here">Posizione</button>
     <button type="button" id="filters">Filtri</button>
+    <button type="button" id="openList">Lista</button>
   </div>
-  <div id="ver">v24</div>
+  <div id="ver">v25</div>
   <section class="sheet" id="sheet"></section>
   <section class="card" id="card"></section>
+  <section id="list"></section>
 </div>
 <script src="maplibre-gl.js"></script>
 <script>
@@ -144,7 +155,7 @@ function openSpotCard(s) {
   document.getElementById("del").onclick = () => {
     const n = spots.findIndex(x => x.uid === s.uid);
     if (n >= 0) spots.splice(n, 1);
-    localStorage.setItem("wildcamp-spots", JSON.stringify(spots));
+    saveSpots();
     drawSpots();
     closeCard();
   };
@@ -177,6 +188,71 @@ document.getElementById("filters").onclick = (ev) => {
     b.className = hidden.has(b.dataset.f) ? "off" : "";
   });
 };
+
+function saveSpots() { saveSpots(); }
+function backupFile() {
+  const blob = new Blob([JSON.stringify({ spots: spots, saved: new Date().toISOString() }, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "wildcamp-backup.json";
+  a.click();
+  localStorage.setItem("wildcamp-backup-at", String(Date.now()));
+}
+function maybeWeeklyBackup() {
+  const last = Number(localStorage.getItem("wildcamp-backup-at") || 0);
+  if (Date.now() - last > 7 * 24 * 60 * 60 * 1000) backupFile();
+}
+function renderList() {
+  const box = document.getElementById("list");
+  const rows = spots.filter(s => !hidden.has(s.id));
+  box.innerHTML = "<header><button type='button' id='closeList'>Mappa</button><button type='button' id='loadBackup'>Carica backup</button></header><div class='icons'>" +
+    ICONS.map(i => "<button type='button' data-f='" + i[0] + "' class='" + (hidden.has(i[0]) ? "off" : "") + "'>" + i[1] + "</button>").join("") +
+    "</div>" + (rows.length ? rows.map(s => "<div class='row' data-uid='" + s.uid + "'><b>" + s.emoji + " " + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b><textarea data-note='" + s.uid + "' placeholder='Nota'>" + (s.note || "") + "</textarea></div>").join("") : "<p>Nessun segnaposto</p>");
+  document.getElementById("closeList").onclick = () => box.classList.remove("show");
+  box.querySelectorAll("[data-f]").forEach(b => b.onclick = () => {
+    if (hidden.has(b.dataset.f)) hidden.delete(b.dataset.f); else hidden.add(b.dataset.f);
+    localStorage.setItem("wildcamp-hidden", JSON.stringify([...hidden]));
+    drawSpots();
+    renderList();
+  });
+  box.querySelectorAll(".row").forEach(row => row.onclick = (ev) => {
+    if (ev.target.tagName === "TEXTAREA") return;
+    const s = spots.find(x => String(x.uid) === row.dataset.uid);
+    if (!s) return;
+    box.classList.remove("show");
+    map.flyTo({ center: [s.lng, s.lat], zoom: 14 });
+    openSpotCard(s);
+  });
+  box.querySelectorAll("textarea").forEach(el => el.onchange = () => {
+    const s = spots.find(x => String(x.uid) === el.dataset.note);
+    if (!s) return;
+    s.note = el.value;
+    saveSpots();
+  });
+  document.getElementById("loadBackup").onclick = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json";
+    input.onchange = () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const data = JSON.parse(reader.result);
+        const rows = Array.isArray(data) ? data : (data.spots || []);
+        rows.forEach(r => { if (r.lat != null && r.lng != null) spots.push(r); });
+        saveSpots();
+        drawSpots();
+        renderList();
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+}
+document.getElementById("openList").onclick = () => { renderList(); document.getElementById("list").classList.add("show"); };
+maybeWeeklyBackup();
+
 map.on("load", drawSpots);
 map.on("click", (e) => {
   const pin = e.originalEvent && e.originalEvent.target && e.originalEvent.target.closest && e.originalEvent.target.closest(".pin");
@@ -196,7 +272,7 @@ map.on("click", (e) => {
   card.querySelectorAll("[data-i]").forEach(b => b.onclick = () => {
     const icon = ICONS.find(i => i[0] === b.dataset.i);
     spots.push({ uid: Date.now() + Math.random(), id: icon[0], lng, lat, emoji: icon[1], color: icon[2] });
-    localStorage.setItem("wildcamp-spots", JSON.stringify(spots));
+    saveSpots();
     drawSpots();
     closeCard();
   });
