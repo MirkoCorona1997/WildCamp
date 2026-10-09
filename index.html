@@ -142,6 +142,13 @@
   .float-filters.open, .layers.open { display: flex !important; }
   .pills { position: absolute; z-index: 6; top: 8px; left: 8px; display: flex; gap: 6px; }
   .pills button { border: 0; background: var(--sand); color: var(--ink); border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 650; }
+  .sheet { display: none; position: absolute; z-index: 7; left: 8px; right: 8px; top: 46px; background: var(--deep); color: var(--sand); border: 1px solid var(--line); border-radius: 16px; padding: 8px; max-height: 46vh; overflow: auto; }
+  .sheet.open { display: block; }
+  .sheet button { display: block; width: 100%; text-align: left; margin: 4px 0; border: 1px solid var(--line); background: transparent; color: var(--sand); border-radius: 10px; padding: 8px 10px; }
+  .sheet button.on { background: var(--sand); color: var(--ink); }
+  .me { width: 18px; height: 18px; border-radius: 50%; background: #2d8ec8; border: 2px solid white; box-shadow: 0 0 0 6px rgba(45,142,200,.25); }
+  .me.head { width: 0; height: 0; border-radius: 0; background: transparent; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 16px solid #2d8ec8; box-shadow: none; }
+
   .tools {
     position: absolute; z-index: 3; left: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px;
   }
@@ -235,7 +242,7 @@
 <div id="app">
   <header class="top">
     <div class="brand">
-      <span class="ver" id="versionTag">v16</span>
+      <span class="ver" id="versionTag">v17</span>
     </div>
     <form class="search" id="searchForm">
       <input id="q" placeholder="Cerca luogo" autocomplete="off" />
@@ -248,7 +255,10 @@
     <div class="pills">
       <button type="button" id="pillFilters">Filtri</button>
       <button type="button" id="pillLayers">Livelli</button>
+      <button type="button" id="pillHere">Posizione</button>
     </div>
+    <section class="sheet" id="filterSheet"></section>
+    <section class="sheet" id="layerSheet"></section>
     <div class="float-filters" id="filters"></div>
     <div class="layers" id="layers"></div>
     <div class="tools">
@@ -286,7 +296,7 @@
   </div>
 </div>
 <script>
-document.getElementById("versionTag").textContent = "v16";
+document.getElementById("versionTag").textContent = "v17";
 </script>
 <script src="maplibre-gl.js"></script>
 <script>
@@ -529,8 +539,8 @@ try {
   map = new maplibregl.Map({
     container: "map",
     style: OSM_STYLE,
-    center: [11.9, 45.7],
-    zoom: 7.2,
+    center: [9.05, 40.05],
+    zoom: 7.5,
     pitch: 0,
     maxPitch: 72,
     attributionControl: true,
@@ -1309,8 +1319,52 @@ async function downloadPack(kind) {
   toast("OSM salvata nel telefono");
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
-$("pillLayers").onclick = () => { $("layers").classList.toggle("open"); $("filters").classList.remove("open"); };
-$("pillFilters").onclick = () => { $("filters").classList.toggle("open"); $("layers").classList.remove("open"); };
+
+function fillSheets() {
+  const fs = $("filterSheet");
+  const counts = Object.fromEntries(CATS.map(c => [c.id, state.spots.filter(s => s.cat === c.id).length]));
+  fs.innerHTML = `<button type="button" data-f="all" class="${state.filter === "all" ? "on" : ""}">Tutti</button>` +
+    CATS.map(c => `<button type="button" data-f="${c.id}" class="${state.filter === c.id ? "on" : ""}">${c.label} ${counts[c.id]}</button>`).join("");
+  fs.querySelectorAll("button").forEach(b => b.onclick = () => { state.filter = b.dataset.f; state.favOnly = false; renderAll(); fillSheets(); });
+  const ls = $("layerSheet");
+  const items = [["osm","Mappa OSM"],["topo","Topo"],["cyclo","Fondi CyclOSM"],["esri","Topo Esri"],["sat","Satellite"],["hill","Rilievo"],["earth","3D Earth"],["tracks","Fondi 4x4"],["hike","Sentieri a piedi"],["mtb","Tracce MTB"]];
+  ls.innerHTML = items.map(([id, label]) => `<button type="button" data-l="${id}">${label}</button>`).join("");
+  ls.querySelectorAll("button").forEach(b => b.onclick = () => {
+    const id = b.dataset.l;
+    if (id === "tracks") { state.tracksOn = !state.tracksOn; if (state.tracksOn) { if (map.getZoom() < 12) map.flyTo({ zoom: 12 }); loadTracks(); renderLegend(); } $("legend").hidden = !state.tracksOn; }
+    else if (id === "hike") { state.hikeOn = !state.hikeOn; if (map.getLayer("hike")) map.setLayoutProperty("hike", "visibility", state.hikeOn ? "visible" : "none"); }
+    else if (id === "mtb") { state.mtbOn = !state.mtbOn; if (map.getLayer("mtb")) map.setLayoutProperty("mtb", "visibility", state.mtbOn ? "visible" : "none"); }
+    else setLayer(id);
+    $("layerSheet").classList.remove("open");
+  });
+}
+fillSheets();
+$("pillFilters").onclick = () => { fillSheets(); $("filterSheet").classList.toggle("open"); $("layerSheet").classList.remove("open"); };
+$("pillLayers").onclick = () => { fillSheets(); $("layerSheet").classList.toggle("open"); $("filterSheet").classList.remove("open"); };
+let meMarker = null;
+let heading = 0;
+function meEl() {
+  const el = document.createElement("div");
+  el.className = heading ? "me head" : "me";
+  el.style.transform = "rotate(" + heading + "deg)";
+  return el;
+}
+$("pillHere").onclick = () => {
+  if (!navigator.geolocation) return toast("Posizione non disponibile");
+  navigator.geolocation.watchPosition(pos => {
+    state.user = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    if (pos.coords.heading != null && !Number.isNaN(pos.coords.heading)) heading = pos.coords.heading;
+    if (meMarker) meMarker.remove();
+    meMarker = new maplibregl.Marker({ element: meEl(), rotationAlignment: "map" }).setLngLat([state.user.lng, state.user.lat]).addTo(map);
+    map.easeTo({ center: [state.user.lng, state.user.lat], zoom: Math.max(map.getZoom(), 13) });
+  }, () => toast("Permesso posizione negato"), { enableHighAccuracy: true });
+  window.addEventListener("deviceorientation", (e) => {
+    if (e.webkitCompassHeading != null) heading = e.webkitCompassHeading;
+    else if (e.alpha != null) heading = 360 - e.alpha;
+    if (meMarker) { meMarker.remove(); meMarker = new maplibregl.Marker({ element: meEl() }).setLngLat([state.user.lng, state.user.lat]).addTo(map); }
+  });
+};
+
 $("btnLayers").onclick = () => $("layers").classList.toggle("open");
 $("btnLocate").onclick = () => {
   if (!navigator.geolocation) return toast("Geolocalizzazione non disponibile");
