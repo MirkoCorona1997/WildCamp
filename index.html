@@ -41,18 +41,27 @@
   button { cursor: pointer; }
   #app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
   header.top {
-    display: flex; align-items: center; gap: 14px;
-    padding: 12px 16px; background: linear-gradient(180deg, #13241c, #102019);
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; background: #102019;
     border-bottom: 1px solid var(--line); z-index: 5;
   }
-  .brand { display: flex; align-items: center; gap: 10px; min-width: 190px; }
-  .mark {
-    width: 38px; height: 38px; border-radius: 12px;
-    background: radial-gradient(circle at 30% 30%, #3f6b52, #1a3328);
-    display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  .brand { display: flex; align-items: center; gap: 8px; }
+  .brand h1 { font-family: Fraunces, serif; font-size: 18px; margin: 0; letter-spacing: -.03em; font-weight: 680; }
+  .ver {
+    display: inline-block; background: #e3a14a; color: #14241c; font-weight: 700;
+    font-size: 12px; border-radius: 999px; padding: 2px 7px; letter-spacing: 0;
   }
-  .brand h1 { font-family: Fraunces, serif; font-size: 22px; margin: 0; letter-spacing: -.03em; font-weight: 680; }
-  .brand p { margin: 0; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #cbbfa8; }
+  .search {
+    flex: 0 1 220px; display: flex; gap: 4px; background: rgba(255,255,255,.04);
+    border: 1px solid var(--line); border-radius: 999px; padding: 2px 2px 2px 10px; align-items: center;
+  }
+  .search input {
+    flex: 1; background: transparent; border: 0; outline: none; font-size: 13px; min-width: 0; padding: 4px 0;
+  }
+  .search button, .iconbtn {
+    border: 0; background: var(--sand); color: var(--ink); border-radius: 999px;
+    padding: 5px 8px; font-weight: 580; font-size: 12px;
+  }
   .legend {
     position: absolute; z-index: 3; left: 16px; bottom: 168px; width: 230px;
     background: rgba(16, 28, 22, .9); border: 1px solid var(--line); border-radius: 16px;
@@ -64,8 +73,8 @@
   .legend i { width: 22px; height: 4px; border-radius: 4px; display: inline-block; }
   .layers { width: 196px; }
   .search {
-    flex: 1; display: flex; gap: 8px; background: rgba(255,255,255,.04);
-    border: 1px solid var(--line); border-radius: 999px; padding: 6px 6px 6px 14px; align-items: center;
+    flex: 0 1 180px; display: flex; gap: 4px; background: rgba(255,255,255,.04);
+    border: 1px solid var(--line); border-radius: 999px; padding: 2px 2px 2px 10px; align-items: center;
   }
   .search input {
     flex: 1; background: transparent; border: 0; outline: none; font-size: 14px; min-width: 0;
@@ -189,17 +198,19 @@
   .slider { width: 100%; accent-color: var(--amber); }
   .hide-mobile { display: inline; }
   @media (max-width: 860px) {
-    header.top { flex-wrap: wrap; }
+    header.top { flex-wrap: nowrap; padding: 6px 8px; }
     .brand p, .hide-mobile { display: none; }
-    .search { order: 3; width: 100%; flex: none; }
-    .float-filters { right: 12px; top: auto; bottom: 78px; }
+    .ver { display: inline-block; }
+    .search { order: 0; width: 108px; flex: 0 0 108px; }
+    .search input { font-size: 12px; }
+    .float-filters { right: 8px; top: 8px; bottom: auto; }
     .panel { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; height: min(62vh, 540px); }
-    .panel.collapsed { height: 58px; }
-    .layers { top: 12px; }
+    .panel.collapsed { height: 42px; overflow: hidden; }
+    .layers { top: 8px; }
     .status { display: none; }
-    .drawer, .sv { left: 8px; right: 8px; width: auto; bottom: 74px; }
-    .tools { flex-direction: row; right: 12px; left: 12px; bottom: 12px; }
-    .tools button { flex: 1; text-align: center; }
+    .drawer, .sv { left: 8px; right: 8px; width: auto; bottom: 52px; }
+    .tools { flex-direction: row; right: 8px; left: 8px; bottom: 8px; gap: 4px; }
+    .tools button { flex: 1; text-align: center; padding: 7px 4px; font-size: 11px; }
   }
 </style>
 </head>
@@ -207,17 +218,12 @@
 <div id="app">
   <header class="top">
     <div class="brand">
-      <div class="mark" aria-hidden="true">
-        <img src="icon-180.png" alt="" width="38" height="38" style="width:38px;height:38px;object-fit:cover;border-radius:10px" />
-      </div>
-      <div>
-        <h1>WildCamp</h1>
-        <p id="versionTag">v6 · offline Sardegna</p>
-      </div>
+      <h1>WildCamp</h1>
+      <span class="ver" id="versionTag">v9</span>
     </div>
     <form class="search" id="searchForm">
-      <input id="q" placeholder="Cerca un luogo, un lago, una valle…" autocomplete="off" />
-      <button type="submit">Cerca</button>
+      <input id="q" placeholder="Cerca luogo" autocomplete="off" />
+      <button type="submit">Vai</button>
     </form>
     <nav class="tabs" aria-label="Sezioni">
       <button type="button" id="tabMap" class="on">Mappa</button>
@@ -238,12 +244,12 @@
       <button type="button" id="btnOsm">Punti OSM</button>
     </div>
     <div class="legend" id="legend" hidden></div>
-    <div class="status" id="status">WildCamp v6. Scarica la Sardegna finché hai rete: poi mappa e satellite restano sul telefono.</div>
-    <aside class="panel" id="panel">
+    <div class="status" id="status"></div>
+    <aside class="panel collapsed" id="panel">
       <div class="head">
         <div>
           <h2 id="panelTitle">Segnaposto</h2>
-          <div class="sub" id="panelSub">Filtra per icona. I punti restano sulla mappa.</div>
+          <div class="sub" id="panelSub"></div>
         </div>
         <button class="ghost iconbtn" id="panelToggle" type="button">Chiudi</button>
       </div>
@@ -261,7 +267,7 @@
   </div>
 </div>
 <script>
-document.getElementById("versionTag").textContent = "v6 · script ok";
+document.getElementById("versionTag").textContent = "v10";
 </script>
 <script src="maplibre-gl.js"></script>
 <script>
@@ -344,7 +350,14 @@ function saveStore() {
 }
 function seedSpots() {
   const rows = [
-    ["verifica", 12.302, 46.618, "Tre Cime, conca alta", "Posizione indicativa. Spesso soggetta a divieti di bivacco: verifica i cartelli del parco."],
+    ["verifica", 12.302, 46.618, "Tre Cime, conca alta", ""],
+    ["verifica", 11.648, 46.542, "Alpe di Siusi, margine prati", ""],
+    ["picnic", 12.085, 46.694, "Lago di Braies, area sosta", ""],
+    ["verifica", 13.558, 42.443, "Campo Imperatore", ""],
+    ["verifica", 9.77, 46.26, "Val di Mello, greto", ""],
+    ["acqua", 11.575, 46.409, "Lago di Carezza, fontana area", ""],
+    ["verifica", 9.32, 40.25, "Supramonte, leccio", ""],
+    ["rifiuti", 11.121, 46.067, "Trento nord, isola ecologica", ""]
     ["verifica", 11.648, 46.542, "Alpe di Siusi, margine prati", "Zona molto frequentata. Non è un'autorizzazione al campeggio."],
     ["picnic", 12.085, 46.694, "Lago di Braies, area sosta", "Picnic noto, non un posto tenda. Utile per tavoli e punto di partenza."],
     ["verifica", 13.558, 42.443, "Campo Imperatore", "Altopiano ventoso. Controlla regolamento del Parco del Gran Sasso."],
@@ -424,16 +437,54 @@ function gearth(s) { return `https://earth.google.com/web/@${s.lat},${s.lng},180
 function gstreet(s) { return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${s.lat},${s.lng}`; }
 function svEmbed(s) { return `https://maps.google.com/maps?q=&layer=c&cbll=${s.lat},${s.lng}&cbp=11,0,0,0,0&output=svembed`; }
 
+function openTileDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("wildcamp-tiles", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("tiles");
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function tileGet(key) {
+  return openTileDb().then(db => new Promise(resolve => {
+    const r = db.transaction("tiles").objectStore("tiles").get(key);
+    r.onsuccess = () => resolve(r.result || null);
+    r.onerror = () => resolve(null);
+  }));
+}
+function tilePut(key, buf) {
+  return openTileDb().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction("tiles", "readwrite");
+    tx.objectStore("tiles").put(buf, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+function remoteTile(key) {
+  const parts = key.replace(".png", "").split("/");
+  const kind = parts[0], z = parts[1], x = parts[2], y = parts[3];
+  if (kind === "sat") return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+  return `https://a.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
+}
+if (typeof maplibregl !== "undefined") {
+  maplibregl.addProtocol("local", async (params) => {
+    const key = params.url.replace("local://", "");
+    let buf = await tileGet(key);
+    if (!buf) {
+      const res = await fetch(remoteTile(key));
+      if (!res.ok) throw new Error("tessera assente");
+      buf = await res.arrayBuffer();
+      tilePut(key, buf);
+    }
+    return { data: buf };
+  });
+}
 const OSM_STYLE = {
   version: 8,
-  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
   sources: {
     osm: {
       type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-        "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
-      ],
+      tiles: ["local://osm/{z}/{x}/{y}.png"],
       tileSize: 256,
       attribution: "© OpenStreetMap, © CARTO"
     }
@@ -472,7 +523,7 @@ if (map) map.on("load", () => {
   });
   map.addSource("satellite", {
     type: "raster",
-    tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+    tiles: ["local://sat/{z}/{x}/{y}.png"],
     tileSize: 256,
     attribution: "Immagini Esri, Maxar, Earthstar"
   });
@@ -731,7 +782,7 @@ function renderPanel() {
   const body = $("panelBody");
   if (state.section === "map") {
     $("panelTitle").textContent = "Mappa";
-    $("panelSub").textContent = "Livelli, fondi 4x4 e vista 3D.";
+    $("panelSub").textContent = "";
     body.innerHTML = `
       <div class="group">
         <h3>Zone rapide</h3>
@@ -741,15 +792,14 @@ function renderPanel() {
         <h3>Rilievo 3D</h3>
         <label>Inclinazione ${state.pitch}°<input class="slider" id="pitch" type="range" min="20" max="70" value="${state.pitch}"></label>
         <label>Esagerazione rilievo ${state.exager.toFixed(2)}<input class="slider" id="ex" type="range" min="60" max="220" value="${Math.round(state.exager * 100)}"></label>
-        <p class="sub">Fondi 4x4 colora le sterrate OSM: giallo percorribile, arancio messo male, rosso solo 4x4, viola tratteggiato solo a piedi. CyclOSM e il satellite servono a controllare se la traccia c'è davvero. Non esiste una mappa libera più completa di OpenStreetMap sulle sterrate europee: Esri e il satellite coprono i buchi visivi.</p>
+        <p class="sub"></p>
       </div>
       <div class="group">
         <h3>Dati</h3>
         <button class="spot" id="exportJson"><div><b>Esporta i miei punti</b><span>JSON di backup</span></div></button>
         <button class="spot" id="exportGpx"><div><b>Esporta GPX visibile</b><span>Per GPS e app outdoor</span></div></button>
         <button class="spot" id="importJson"><div><b>Importa JSON</b><span>Ripristina un backup</span></div></button>
-      </div>
-      <div class="legal">Il campeggio libero in Italia è spesso vietato fuori dalle aree attrezzate. Il bivacco d'emergenza in montagna dipende da regione, quota e parco. Questa mappa non è un permesso.</div>`;
+      </div>`;
     body.querySelectorAll("[data-reg]").forEach(b => b.onclick = () => {
       const r = REGIONS[+b.dataset.reg];
       map.flyTo({ center: [r[1], r[2]], zoom: r[3], essential: true });
@@ -763,7 +813,7 @@ function renderPanel() {
     return;
   }
   $("panelTitle").textContent = "Segnaposto";
-  $("panelSub").textContent = state.filter === "all" ? "Tutte le icone, divise per tipo." : `Solo ${CAT[state.filter].label.toLowerCase()} sulla mappa.`;
+  $("panelSub").textContent = "";
   const q = state.query;
   const groups = CATS.filter(c => state.filter === "all" || state.filter === c.id).map(c => {
     const items = visibleSpots().filter(s => s.cat === c.id)
@@ -824,7 +874,7 @@ function openSpot(s) {
       ${s.source === "mio" ? `<button type="button" id="verify">${s.cat === "verifica" ? "Segna tenda ok" : "Rimetti da verificare"}</button><button type="button" id="del">Elimina</button>` : `<button type="button" id="saveCopy">Salva nei miei</button>`}
     </div>
     <div class="weather" id="wxBox" hidden></div>
-    <div class="legal">Controlla sempre cartelli, proprietà privata e regolamenti del parco. Un'icona sulla mappa non significa che si possa piantare la tenda.</div>`;
+    `;
   $("closeDrawer").onclick = () => { d.classList.remove("show"); state.selected = null; };
   $("openSv").onclick = () => {
     $("svFrame").src = svEmbed(s);
@@ -1055,55 +1105,54 @@ function tileXY(lng, lat, z) {
   return { x, y };
 }
 function tileList(west, south, east, north, z0, z1) {
-  const urls = [];
+  const keys = [];
   for (let z = z0; z <= z1; z++) {
     const a = tileXY(west, north, z);
     const b = tileXY(east, south, z);
     for (let x = a.x; x <= b.x; x++) {
       for (let y = a.y; y <= b.y; y++) {
-        urls.push(`https://a.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`);
-        urls.push(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`);
+        keys.push(`osm/${z}/${x}/${y}.png`);
+        keys.push(`sat/${z}/${x}/${y}.png`);
       }
     }
   }
-  return urls;
+  return keys;
 }
 async function downloadPack(kind) {
   if (!navigator.onLine) { toast("Serve la rete per scaricare"); return; }
-  if (!window.caches) { toast("Questo browser non salva le mappe offline"); return; }
-  let urls;
+  let keys;
   let label;
   if (kind === "sardegna") {
-    urls = tileList(8.10, 38.85, 9.85, 41.32, 7, 12);
-    label = "Sardegna, mappa e satellite fino allo zoom 12";
+    keys = tileList(8.10, 38.85, 9.85, 41.32, 7, 12);
+    label = "Sardegna OSM e satellite";
   } else {
     if (!map) return;
     const b = map.getBounds();
     const z = Math.max(11, Math.min(14, Math.round(map.getZoom())));
-    urls = tileList(b.getWest(), b.getSouth(), b.getEast(), b.getNorth(), z, z);
+    keys = tileList(b.getWest(), b.getSouth(), b.getEast(), b.getNorth(), z, z);
     label = "Zona visibile, zoom " + z;
   }
-  const cache = await caches.open("wildcamp-tiles-v1");
   let done = 0;
   let skipped = 0;
-  const queue = urls.slice();
+  const queue = keys.slice();
   async function worker() {
     while (queue.length) {
-      const url = queue.shift();
-      if (await cache.match(url)) { skipped++; done++; continue; }
+      const key = queue.shift();
+      if (await tileGet(key)) { skipped++; done++; continue; }
       try {
-        const res = await fetch(url, { mode: "cors" });
-        if (res.ok) await cache.put(url, res);
+        const res = await fetch(remoteTile(key));
+        if (res.ok) await tilePut(key, await res.arrayBuffer());
       } catch (err) {}
       done++;
-      if (done % 25 === 0) $("status").textContent = `${label}: ${done}/${urls.length}`;
+      if (done % 20 === 0) $("status").textContent = `${label}: ${done}/${keys.length}`;
     }
   }
-  $("status").textContent = `${label}: parto, ${urls.length} tessere. Lascia la pagina aperta.`;
-  toast("Download avviato, non chiudere");
+  $("status").textContent = `${label}: scarico ${keys.length} tessere nel telefono. Non chiudere.`;
+  toast("Download OSM avviato");
   await Promise.all([worker(), worker(), worker()]);
-  $("status").textContent = `${label} pronto. ${skipped} erano già sul telefono. Ora funziona anche senza rete, fino allo zoom scaricato.`;
-  toast("Mappa salvata sul telefono");
+  if (map) map.triggerRepaint();
+  $("status").textContent = `${label} nel telefono. ${skipped} c'erano già. Senza rete resta la OSM scaricata.`;
+  toast("OSM salvata nel telefono");
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 $("btnTracks").onclick = () => {
