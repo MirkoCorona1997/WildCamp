@@ -219,7 +219,7 @@
   <header class="top">
     <div class="brand">
       <h1>WildCamp</h1>
-      <span class="ver" id="versionTag">v9</span>
+      <span class="ver" id="versionTag">v11</span>
     </div>
     <form class="search" id="searchForm">
       <input id="q" placeholder="Cerca luogo" autocomplete="off" />
@@ -267,7 +267,7 @@
   </div>
 </div>
 <script>
-document.getElementById("versionTag").textContent = "v10";
+document.getElementById("versionTag").textContent = "v11";
 </script>
 <script src="maplibre-gl.js"></script>
 <script>
@@ -463,15 +463,28 @@ function tilePut(key, buf) {
 function remoteTile(key) {
   const parts = key.replace(".png", "").split("/");
   const kind = parts[0], z = parts[1], x = parts[2], y = parts[3];
-  if (kind === "sat") return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
-  return `https://a.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
+  if (kind === "sat") return [`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`];
+  return [
+    `https://a.tile.openstreetmap.fr/osmfr/${z}/${x}/${y}.png`,
+    `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
+    `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`
+  ];
+}
+async function fetchTile(key) {
+  for (const url of remoteTile(key)) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return res;
+    } catch (err) {}
+  }
+  throw new Error("tessera assente");
 }
 if (typeof maplibregl !== "undefined") {
   maplibregl.addProtocol("local", async (params) => {
     const key = params.url.replace("local://", "");
     let buf = await tileGet(key);
     if (!buf) {
-      const res = await fetch(remoteTile(key));
+      const res = await fetchTile(key);
       if (!res.ok) throw new Error("tessera assente");
       buf = await res.arrayBuffer();
       tilePut(key, buf);
@@ -486,7 +499,7 @@ const OSM_STYLE = {
       type: "raster",
       tiles: ["local://osm/{z}/{x}/{y}.png"],
       tileSize: 256,
-      attribution: "© OpenStreetMap, © CARTO"
+      attribution: "© OpenStreetMap"
     }
   },
   layers: [{ id: "osm", type: "raster", source: "osm" }]
@@ -1140,7 +1153,7 @@ async function downloadPack(kind) {
       const key = queue.shift();
       if (await tileGet(key)) { skipped++; done++; continue; }
       try {
-        const res = await fetch(remoteTile(key));
+        const res = await fetchTile(key);
         if (res.ok) await tilePut(key, await res.arrayBuffer());
       } catch (err) {}
       done++;
