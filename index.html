@@ -417,19 +417,44 @@ function gearth(s) { return `https://earth.google.com/web/@${s.lat},${s.lng},180
 function gstreet(s) { return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${s.lat},${s.lng}`; }
 function svEmbed(s) { return `https://maps.google.com/maps?q=&layer=c&cbll=${s.lat},${s.lng}&cbp=11,0,0,0,0&output=svembed`; }
 
-const map = new maplibregl.Map({
-  container: "map",
-  style: "https://tiles.openfreemap.org/styles/liberty",
-  center: [11.9, 45.7],
-  zoom: 7.2,
-  pitch: 0,
-  maxPitch: 72,
-  attributionControl: true
-});
-map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
-map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
+const OSM_STYLE = {
+  version: 8,
+  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap, © CARTO"
+    }
+  },
+  layers: [{ id: "osm", type: "raster", source: "osm" }]
+};
+let map;
+try {
+  if (typeof maplibregl === "undefined") throw new Error("libreria mappa non caricata");
+  map = new maplibregl.Map({
+    container: "map",
+    style: OSM_STYLE,
+    center: [11.9, 45.7],
+    zoom: 7.2,
+    pitch: 0,
+    maxPitch: 72,
+    attributionControl: true,
+    failIfMajorPerformanceCaveat: false
+  });
+  map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
+  map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
+} catch (err) {
+  map = null;
+  const box = document.getElementById("status");
+  if (box) box.textContent = "Mappa non partita: " + err.message + ". Ricarica la pagina da Safari, non dall'app GitHub.";
+}
 
-map.on("load", () => {
+if (map) map.on("load", () => {
   for (const c of CATS) map.addImage("pin-" + c.id, iconImage(c.id), { pixelRatio: 2 });
   map.addSource("dem", {
     type: "raster-dem",
@@ -477,7 +502,7 @@ map.on("load", () => {
     attribution: "Waymarked Trails MTB"
   });
   map.addSource("tracks", { type: "geojson", data: emptyFC() });
-  const firstSymbol = map.getStyle().layers.find(l => l.type === "symbol");
+  const firstSymbol = (map.getStyle().layers || []).find(l => l.type === "symbol");
   const before = firstSymbol && firstSymbol.id;
   map.addLayer({ id: "sat", type: "raster", source: "satellite", layout: { visibility: "none" } }, before);
   map.addLayer({ id: "topo", type: "raster", source: "topo", layout: { visibility: "none" } }, before);
@@ -642,7 +667,7 @@ function setLayer(mode) {
   }
   renderLayers();
   $("status").textContent = {
-    osm: "OpenStreetMap Liberty: la base più completa sui sentieri e le sterrate mappate.",
+    osm: "Mappa stradale OpenStreetMap. Se è grigia, controlla la rete e ricarica.",
     topo: "OpenTopoMap: curve, sentieri e tracce. Utile in montagna.",
     cyclo: "CyclOSM: colora il fondo (asfalto, sterrato, ciclabile) più delle mappe stradali normali.",
     esri: "Esri Topo: rilievo e toponimi, da confrontare con OSM dove una traccia manca.",
@@ -1181,7 +1206,7 @@ function onTrackClick(e) {
   $("closeRoad").onclick = () => d.classList.remove("show");
 }
 
-map.on("error", (e) => {
+if (map) map.on("error", (e) => {
   const msg = e && e.error ? e.error.message : "errore mappa";
   if (!/glyphs|sprite|image/i.test(msg)) $("status").textContent = "Mappa: " + msg;
 });
