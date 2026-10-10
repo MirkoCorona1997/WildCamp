@@ -60,7 +60,7 @@
     <button type="button" id="layers">Livelli</button>
     <button type="button" id="openList">Lista</button>
   </div>
-  <div id="ver">v29</div>
+  <div id="ver">v30</div>
   <section class="sheet" id="sheet"></section>
   <section class="card" id="card"></section>
   <section id="list"></section>
@@ -182,21 +182,20 @@ function pickPhoto(s, done) {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "image/*";
+  input.style.position = "fixed";
+  input.style.left = "-999px";
+  document.body.appendChild(input);
   input.onchange = () => {
     const file = input.files && input.files[0];
+    input.remove();
     if (!file) return;
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, 1280 / Math.max(img.width, img.height));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(img.width * scale));
-      canvas.height = Math.max(1, Math.round(img.height * scale));
-      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-      s.photo = canvas.toDataURL("image/jpeg", 0.8);
+    const reader = new FileReader();
+    reader.onload = () => {
+      s.photo = reader.result;
       savePhoto(s.uid, s.photo).catch(() => {});
       if (done) done();
     };
-    img.src = URL.createObjectURL(file);
+    reader.readAsDataURL(file);
   };
   input.click();
 }
@@ -208,9 +207,13 @@ function openSpotCard(s) {
   withPhoto(s, () => {
   const card = document.getElementById("card");
   card.className = "card show";
-  card.innerHTML = "<b>" + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b>" +
-    (s.photo ? "<img class='photo' src='" + s.photo + "'>" : "") +
-    "<div class='acts'><button type='button' id='photo'>Foto</button><button type='button' id='del'>Togli segnaposto</button><a href='https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lng + "'>Naviga</a><a href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=" + s.lat + "," + s.lng + "'>Street View</a><button type='button' id='close'>Chiudi</button></div>";
+  card.innerHTML = "<b>" + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b><div id='photoBox'></div><div class='acts'><button type='button' id='photo'>Foto</button><button type='button' id='del'>Togli segnaposto</button><a href='https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lng + "'>Naviga</a><a href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=" + s.lat + "," + s.lng + "'>Street View</a><button type='button' id='close'>Chiudi</button></div>";
+  if (s.photo) {
+    const img = document.createElement("img");
+    img.className = "photo";
+    img.src = s.photo;
+    document.getElementById("photoBox").appendChild(img);
+  }
   document.getElementById("photo").onclick = () => pickPhoto(s, () => openSpotCard(s));
   document.getElementById("del").onclick = () => {
     const n = spots.findIndex(x => x.uid === s.uid);
@@ -273,7 +276,16 @@ function renderList() {
     ICONS.map(i => "<button type='button' data-f='" + i[0] + "' class='" + (hidden.has(i[0]) ? "off" : "") + "'>" + i[1] + "</button>").join("") +
     "</div><div id='rows'></div>";
   Promise.all(rows.map(s => withPhoto(s, () => {}))).then(() => {
-    document.getElementById("rows").innerHTML = rows.length ? rows.map(s => "<div class='row' data-uid='" + s.uid + "'><b>" + s.emoji + " " + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b>" + (s.photo ? "<img class='photo' src='" + s.photo + "'>" : "") + "<textarea data-note='" + s.uid + "' placeholder='Nota'>" + (s.note || "") + "</textarea><button type='button' data-photo='" + s.uid + "'>Foto</button></div>").join("") : "<p>Nessun segnaposto</p>";
+    document.getElementById("rows").innerHTML = rows.length ? rows.map(s => "<div class='row' data-uid='" + s.uid + "'><b>" + s.emoji + " " + s.lat.toFixed(5) + ", " + s.lng.toFixed(5) + "</b><div class='pic'></div><textarea data-note='" + s.uid + "' placeholder='Nota'>" + (s.note || "") + "</textarea><button type='button' data-photo='" + s.uid + "'>Foto</button></div>").join("") : "<p>Nessun segnaposto</p>";
+    rows.forEach(s => {
+      if (!s.photo) return;
+      const row = document.querySelector(".row[data-uid='" + s.uid + "'] .pic");
+      if (!row) return;
+      const img = document.createElement("img");
+      img.className = "photo";
+      img.src = s.photo;
+      row.appendChild(img);
+    });
     bindList(box);
   });
   bindList(box);
